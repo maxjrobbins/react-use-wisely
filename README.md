@@ -303,6 +303,25 @@ const CopyButton = ({ text }) => {
 };
 ```
 
+### useKeyPress
+
+Hook for detecting key presses.
+
+```jsx
+const ShortcutComponent = () => {
+  const isEnterPressed = useKeyPress('Enter');
+  const isEscapePressed = useKeyPress('Escape');
+  
+  return (
+    <div>
+      <p>Press Enter or Escape</p>
+      {isEnterPressed && <p>Enter pressed!</p>}
+      {isEscapePressed && <p>Escape pressed!</p>}
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License
