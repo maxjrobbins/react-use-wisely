@@ -1,5 +1,5 @@
 {
-  "name": "react-utility-hooks",
+  "name": "use-wisely",
   "version": "1.0.0",
   "description": "A collection of utility hooks for React applications.",
   "main": "dist/index.js",
