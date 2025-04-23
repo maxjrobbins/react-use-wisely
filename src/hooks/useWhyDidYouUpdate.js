@@ -1,4 +1,4 @@
-// Debug component re-renders
+// Fixed hook implementation
 import { useEffect, useRef } from 'react';
 
 /**
@@ -13,32 +13,43 @@ const useWhyDidYouUpdate = (componentName, props) => {
 	}
 
 	// Store previous props
-	const prevProps = useRef({});
+	const prevProps = useRef();
+
+	// Use ref to track if we've already logged in this render cycle
+	const didLog = useRef(false);
 
 	useEffect(() => {
-		if (prevProps.current) {
-			// Get keys from current and previous props
-			const allKeys = Object.keys({ ...prevProps.current, ...props });
-			const changesObj = {};
-
-			allKeys.forEach(key => {
-				// If previous is different from current
-				if (prevProps.current[key] !== props[key]) {
-					changesObj[key] = {
-						from: prevProps.current[key],
-						to: props[key]
-					};
-				}
-			});
-
-			// If there were changes, log them
-			if (Object.keys(changesObj).length) {
-				console.log('[why-did-you-update]', componentName, changesObj);
-			}
+		// Skip first render
+		if (!prevProps.current) {
+			prevProps.current = { ...props };
+			return;
 		}
 
-		// Update previous props
-		prevProps.current = props;
+		// Reset logging flag at the start of effect
+		didLog.current = false;
+
+		// Get keys from current and previous props
+		const allKeys = Object.keys({ ...prevProps.current, ...props });
+		const changesObj = {};
+
+		allKeys.forEach(key => {
+			// If previous is different from current
+			if (prevProps.current[key] !== props[key]) {
+				changesObj[key] = {
+					from: prevProps.current[key],
+					to: props[key]
+				};
+			}
+		});
+
+		// If there were changes and we haven't logged yet, log them
+		if (Object.keys(changesObj).length && !didLog.current) {
+			console.log('[why-did-you-update]', componentName, changesObj);
+			didLog.current = true;
+		}
+
+		// Update previous props with a complete copy
+		prevProps.current = { ...props };
 	});
 };
 

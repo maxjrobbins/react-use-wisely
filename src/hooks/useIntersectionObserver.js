@@ -11,20 +11,19 @@ const useIntersectionObserver = (options = {}) => {
 	const ref = useRef(null);
 
 	useEffect(() => {
-		if (!ref.current) return;
+		const currentRef = ref.current;
+		if (!currentRef) return;
 
 		const observer = new IntersectionObserver(([entry]) => {
 			setIsIntersecting(entry.isIntersecting);
 		}, options);
 
-		observer.observe(ref.current);
+		observer.observe(currentRef);
 
 		return () => {
-			if (ref.current) {
-				observer.unobserve(ref.current);
-			}
+			observer.unobserve(currentRef);
 		};
-	}, [options, ref.current]);
+	}, [options]); // Removed ref.current from dependencies
 
 	return [ref, isIntersecting];
 }

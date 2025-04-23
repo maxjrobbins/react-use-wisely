@@ -7,9 +7,21 @@ import { useState, useEffect } from 'react';
  * @returns {boolean} - True if the media query matches
  */
 const useMedia = (query, defaultState = false) => {
-	const [state, setState] = useState(defaultState);
+	// Initialize with defaultState if matchMedia isn't available
+	const [state, setState] = useState(() => {
+		try {
+			return window.matchMedia ? window.matchMedia(query).matches : defaultState;
+		} catch (e) {
+			return defaultState;
+		}
+	});
 
 	useEffect(() => {
+		// Return early if matchMedia is not available
+		if (!window.matchMedia) {
+			return undefined;
+		}
+
 		let mounted = true;
 		const mql = window.matchMedia(query);
 
@@ -18,10 +30,6 @@ const useMedia = (query, defaultState = false) => {
 			setState(mql.matches);
 		};
 
-		// Set initial value
-		setState(mql.matches);
-
-		// Listen for changes
 		// Modern browsers
 		if (mql.addEventListener) {
 			mql.addEventListener('change', onChange);

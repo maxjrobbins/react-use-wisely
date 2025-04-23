@@ -1,13 +1,21 @@
-// State management for Set data structures
-import { useState, useCallback } from 'react';
+// Final fixed version of useSet.js
+import { useState, useCallback, useRef } from 'react';
 
 /**
  * Hook for managing Set data structures
  * @param {Iterable} initialValue - Initial Set values
- * @returns {Object} - Set state and operations
+ * @returns {Array} - [set, actions]
  */
 const useSet = (initialValue = []) => {
+	// Initialize the set state
 	const [set, setSet] = useState(new Set(initialValue));
+
+	// Use a ref to store the current set for the `has` method
+	// This ensures we can access the latest set even in closure
+	const setRef = useRef(set);
+
+	// Update ref whenever set changes
+	setRef.current = set;
 
 	const actions = {
 		add: useCallback((item) => {
@@ -30,9 +38,10 @@ const useSet = (initialValue = []) => {
 			setSet(new Set());
 		}, []),
 
+		// Return the current set value, not dependent on state closure
 		has: useCallback((item) => {
-			return set.has(item);
-		}, [set]),
+			return setRef.current.has(item);
+		}, []),
 
 		toggle: useCallback((item) => {
 			setSet(prevSet => {

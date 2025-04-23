@@ -1,5 +1,5 @@
 // Enhanced useReducer with middleware support
-import { useReducer, useRef, useEffect } from 'react';
+import { useReducer, useRef, useCallback, useEffect } from 'react';
 
 /**
  * Hook that enhances useReducer with middleware
@@ -9,7 +9,13 @@ import { useReducer, useRef, useEffect } from 'react';
  * @returns {Array} - [state, dispatch]
  */
 const useReducerWithMiddleware = (reducer, initialState, middlewareFn) => {
-	const [state, dispatch] = useReducer(reducer, initialState);
+	// Create a memoized version of the reducer that updates our ref
+	const reducerWithRef = useCallback((state, action) => {
+		const newState = reducer(state, action);
+		return newState;
+	}, [reducer]);
+
+	const [state, originalDispatch] = useReducer(reducerWithRef, initialState);
 
 	// Store the latest state in a ref
 	const stateRef = useRef(state);
@@ -19,17 +25,21 @@ const useReducerWithMiddleware = (reducer, initialState, middlewareFn) => {
 		stateRef.current = state;
 	}, [state]);
 
-	// Create a custom dispatch function that applies middleware
-	const dispatchWithMiddleware = (action) => {
-		// Allow middleware to inspect action and current state
+	// Create a stable dispatch function that doesn't change on rerenders
+	const dispatch = useCallback((action) => {
 		if (middlewareFn) {
-			middlewareFn(stateRef.current, action, dispatch);
-		} else {
-			dispatch(action);
-		}
-	};
+			// Always use the most up-to-date state from the ref
+			const next = (nextAction) => {
+				originalDispatch(nextAction);
+			};
 
-	return [state, dispatchWithMiddleware];
+			middlewareFn(stateRef.current, action, next);
+		} else {
+			originalDispatch(action);
+		}
+	}, [middlewareFn, originalDispatch]);
+
+	return [state, dispatch];
 };
 
 export default useReducerWithMiddleware;
