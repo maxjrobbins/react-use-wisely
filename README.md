@@ -269,6 +269,22 @@ const LazyImage = ({ src, alt }) => {
 };
 ```
 
+### useOnline
+Hook for detecting online/offline status.
+
+```jsx
+const NetworkStatus = () => {
+  const isOnline = useOnline();
+  
+  return (
+    <div>
+      <p>You are currently {isOnline ? 'online' : 'offline'}</p>
+      {!isOnline && <p>Please check your internet connection</p>}
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License

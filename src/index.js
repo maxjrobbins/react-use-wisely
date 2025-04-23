@@ -7,3 +7,4 @@ export { default as useWindowSize } from './hooks/useWindowSize';
 export { default as useForm } from './hooks/useForm';
 export { default as usePrevious } from './hooks/usePrevious';
 export { default as useIntersectionObserver } from './hooks/useIntersectionObserver';
+export { default as useOnline } from './hooks/useOnline';
