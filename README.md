@@ -151,6 +151,83 @@ const MyComponent = () => {
 };
 ```
 
+### useForm
+
+Simple form handling.
+
+```jsx
+const SignupForm = () => {
+  const validate = (values) => {
+    const errors = {};
+    
+    if (!values.email) {
+      errors.email = 'Email is required';
+    } else if (!/\S+@\S+\.\S+/.test(values.email)) {
+      errors.email = 'Email is invalid';
+    }
+    
+    if (!values.password) {
+      errors.password = 'Password is required';
+    } else if (values.password.length < 8) {
+      errors.password = 'Password must be at least 8 characters';
+    }
+    
+    return errors;
+  };
+  
+  const onSubmit = (values, resetForm) => {
+    console.log('Form submitted with values:', values);
+    // API call would go here
+    resetForm();
+  };
+  
+  const {
+    values,
+    errors,
+    touched,
+    handleChange,
+    handleBlur,
+    handleSubmit
+  } = useForm(
+    { email: '', password: '' },
+    onSubmit,
+    validate
+  );
+  
+  return (
+    <form onSubmit={handleSubmit}>
+      <div>
+        <label htmlFor="email">Email</label>
+        <input
+          type="email"
+          id="email"
+          name="email"
+          value={values.email}
+          onChange={handleChange}
+          onBlur={handleBlur}
+        />
+        {touched.email && errors.email && <div>{errors.email}</div>}
+      </div>
+      
+      <div>
+        <label htmlFor="password">Password</label>
+        <input
+          type="password"
+          id="password"
+          name="password"
+          value={values.password}
+          onChange={handleChange}
+          onBlur={handleBlur}
+        />
+        {touched.password && errors.password && <div>{errors.password}</div>}
+      </div>
+      
+      <button type="submit">Sign Up</button>
+    </form>
+  );
+};
+```
+
 ## License
 
 MIT License

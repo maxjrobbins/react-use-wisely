@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react';
  * Hook that returns the current window dimensions
  * @returns {Object} The current window width and height
  */
-export default function useWindowSize() {
+const useWindowSize = () => {
 	const [windowSize, setWindowSize] = useState({
 		width: undefined,
 		height: undefined,
@@ -32,3 +32,5 @@ export default function useWindowSize() {
 
 	return windowSize;
 }
+
+export default useWindowSize;

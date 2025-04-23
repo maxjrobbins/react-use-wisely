@@ -6,7 +6,7 @@ import { useEffect, useRef } from 'react';
  * @param {Function} callback - Function to call on outside click
  * @returns {React.MutableRefObject} - Ref to attach to the element
  */
-export default function useClickOutside(callback) {
+const useClickOutside = (callback) => {
 	const ref = useRef(null);
 
 	useEffect(() => {
@@ -25,3 +25,5 @@ export default function useClickOutside(callback) {
 
 	return ref;
 }
+
+export default useClickOutside;
