@@ -247,6 +247,7 @@ const Counter = () => {
 ```
 
 ### useIntersectionObserver
+
 Hook for observing when an element enters or exits the viewport.
 
 ```jsx
@@ -270,6 +271,7 @@ const LazyImage = ({ src, alt }) => {
 ```
 
 ### useOnline
+
 Hook for detecting online/offline status.
 
 ```jsx
@@ -281,6 +283,22 @@ const NetworkStatus = () => {
       <p>You are currently {isOnline ? 'online' : 'offline'}</p>
       {!isOnline && <p>Please check your internet connection</p>}
     </div>
+  );
+};
+```
+
+### useClipboard
+
+Hook for copying text to the clipboard.
+
+```jsx
+const CopyButton = ({ text }) => {
+  const [isCopied, copyToClipboard] = useClipboard();
+  
+  return (
+    <button onClick={() => copyToClipboard(text)}>
+      {isCopied ? 'Copied!' : 'Copy to clipboard'}
+    </button>
   );
 };
 ```
