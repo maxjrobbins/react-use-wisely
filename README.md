@@ -134,6 +134,23 @@ const MyComponent = () => {
 };
 ```
 
+### useWindowSize
+
+Track browser window size.
+
+```jsx
+const MyComponent = () => {
+  const { width, height } = useWindowSize();
+  
+  return (
+    <div>
+      <p>Window width: {width}px</p>
+      <p>Window height: {height}px</p>
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License

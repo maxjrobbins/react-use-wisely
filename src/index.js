@@ -3,3 +3,4 @@ export { default as useLocalStorage } from './hooks/useLocalStorage';
 export { default as useDebounce } from './hooks/useDebounce';
 export { default as useMedia } from './hooks/useMedia';
 export { default as useClickOutside } from './hooks/useClickOutside';
+export { default as useWindowSize } from './hooks/useWindowSize';
