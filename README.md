@@ -246,6 +246,29 @@ const Counter = () => {
 };
 ```
 
+### useIntersectionObserver
+Hook for observing when an element enters or exits the viewport.
+
+```jsx
+const LazyImage = ({ src, alt }) => {
+  const [ref, isVisible] = useIntersectionObserver({
+    threshold: 0.1
+  });
+  
+  return (
+    <div ref={ref}>
+      {isVisible ? (
+        <img src={src} alt={alt} />
+      ) : (
+        <div style={{ height: '300px', background: '#f0f0f0' }}>
+          Loading...
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License
