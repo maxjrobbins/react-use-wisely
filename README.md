@@ -1,14 +1,14 @@
 ```
-# React Utility Hooks
+# Use Wisely
 
 A collection of useful React hooks for common tasks.
 
 ## Installation
 
 ```bash
-npm install react-utility-hooks
+npm install use-wisely
 # or
-yarn add react-utility-hooks
+yarn add use-wisely
 ```
 
 ## Available Hooks
@@ -18,7 +18,7 @@ yarn add react-utility-hooks
 Hook for handling asynchronous operations with loading, error, and success states.
 
 ```jsx
-import { useAsync } from 'react-utility-hooks';
+import { useAsync } from 'use-wisely';
 
 const MyComponent = () => {
   const fetchData = async () => {
@@ -46,7 +46,7 @@ const MyComponent = () => {
 Hook for persisting state to localStorage.
 
 ```jsx
-import { useLocalStorage } from 'react-utility-hooks';
+import { useLocalStorage } from 'use-wisely';
 
 const MyComponent = () => {
   const [name, setName] = useLocalStorage('name', 'Guest');
@@ -68,7 +68,7 @@ const MyComponent = () => {
 Hook for debouncing value changes.
 
 ```jsx
-import { useDebounce } from 'react-utility-hooks';
+import { useDebounce } from 'use-wisely';
 
 const MyComponent = () => {
   const [searchTerm, setSearchTerm] = useState('');
@@ -97,7 +97,7 @@ const MyComponent = () => {
 Hook for responsive design with media queries.
 
 ```jsx
-import { useMedia } from 'react-utility-hooks';
+import { useMedia } from 'use-wisely';
 
 const MyComponent = () => {
   const isMobile = useMedia('(max-width: 768px)');
