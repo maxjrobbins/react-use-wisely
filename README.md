@@ -228,6 +228,24 @@ const SignupForm = () => {
 };
 ```
 
+### usePrevious
+
+Hook for getting the previous value of a state or prop.
+
+```jsx
+const Counter = () => {
+  const [count, setCount] = useState(0);
+  const prevCount = usePrevious(count);
+  
+  return (
+    <div>
+      <p>Current: {count}, Previous: {prevCount}</p>
+      <button onClick={() => setCount(count + 1)}>Increment</button>
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License

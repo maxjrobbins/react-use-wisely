@@ -5,3 +5,4 @@ export { default as useMedia } from './hooks/useMedia';
 export { default as useClickOutside } from './hooks/useClickOutside';
 export { default as useWindowSize } from './hooks/useWindowSize';
 export { default as useForm } from './hooks/useForm';
+export { default as usePrevious } from './hooks/usePrevious';
