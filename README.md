@@ -1,347 +1,352 @@
-# Use Wisely
+# React Utility Hooks
 
-A collection of useful React hooks for common tasks.
+A comprehensive collection of custom React hooks for common development tasks.
 
 ## Installation
 
 ```bash
-npm install use-wisely
+npm install react-utility-hooks
 # or
-yarn add use-wisely
+yarn add react-utility-hooks
 ```
 
 ## Available Hooks
 
-### useAsync
+### Core Hooks
 
-Hook for handling asynchronous operations with loading, error, and success states.
+#### useAsync
+Handle asynchronous operations with loading, error, and success states.
 
 ```jsx
-import { useAsync } from 'use-wisely';
+const { execute, status, value, error, isLoading } = useAsync(fetchData);
 
-const MyComponent = () => {
-  const fetchData = async () => {
-    const response = await fetch('https://api.example.com/data');
-    return response.json();
-  };
-
-  const { execute, status, value, error, isLoading } = useAsync(fetchData);
-
-  return (
-    <div>
-      <button onClick={execute} disabled={isLoading}>
-        {isLoading ? 'Loading...' : 'Fetch Data'}
-      </button>
-      
-      {status === 'success' && <div>Data: {JSON.stringify(value)}</div>}
-      {status === 'error' && <div>Error: {error.message}</div>}
-    </div>
-  );
-};
+// Later in your component
+<button onClick={execute} disabled={isLoading}>
+  {isLoading ? 'Loading...' : 'Fetch Data'}
+</button>
 ```
 
-### useLocalStorage
-
-Hook for persisting state to localStorage.
+#### useLocalStorage
+Persist state to localStorage with the same API as useState.
 
 ```jsx
-import { useLocalStorage } from 'use-wisely';
+const [name, setName] = useLocalStorage('user-name', 'Guest');
 
-const MyComponent = () => {
-  const [name, setName] = useLocalStorage('name', 'Guest');
-
-  return (
-    <div>
-      <input
-        type="text"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-      />
-    </div>
-  );
-};
+// Works like useState but persists to localStorage
+setName('New Name');
 ```
 
-### useDebounce
-
-Hook for debouncing value changes.
+#### useDebounce
+Debounce rapidly changing values to reduce unnecessary renders or API calls.
 
 ```jsx
-import { useDebounce } from 'use-wisely';
+const [searchTerm, setSearchTerm] = useState('');
+const debouncedSearchTerm = useDebounce(searchTerm, 500);
 
-const MyComponent = () => {
-  const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearchTerm = useDebounce(searchTerm, 500);
-
-  // Effect runs when debouncedSearchTerm changes
-  useEffect(() => {
-    if (debouncedSearchTerm) {
-      searchApi(debouncedSearchTerm);
-    }
-  }, [debouncedSearchTerm]);
-
-  return (
-    <input
-      type="text"
-      value={searchTerm}
-      onChange={(e) => setSearchTerm(e.target.value)}
-      placeholder="Search..."
-    />
-  );
-};
+// Only triggers API call after typing has stopped for 500ms
+useEffect(() => {
+  if (debouncedSearchTerm) {
+    searchApi(debouncedSearchTerm);
+  }
+}, [debouncedSearchTerm]);
 ```
 
-### useMedia
-
-Hook for responsive design with media queries.
+#### useThrottle
+Limit the rate at which a function can fire.
 
 ```jsx
-import { useMedia } from 'use-wisely';
+const [windowScroll, setWindowScroll] = useState(0);
+const throttledScrollPosition = useThrottle(windowScroll, 200);
 
-const MyComponent = () => {
-  const isMobile = useMedia('(max-width: 768px)');
-
-  return (
-    <div>
-      {isMobile ? 'Mobile View' : 'Desktop View'}
-    </div>
-  );
-};
+// Update scroll position in state
+useEffect(() => {
+  const handleScroll = () => setWindowScroll(window.scrollY);
+  window.addEventListener('scroll', handleScroll);
+  return () => window.removeEventListener('scroll', handleScroll);
+}, []);
 ```
 
-### useClickOutside
-
-Hook for detecting clicks outside a specified element.
+#### useMedia
+React to media query changes for responsive designs.
 
 ```jsx
-import { useState } from 'react';
-import { useClickOutside } from 'use-wisely';
+const isMobile = useMedia('(max-width: 768px)');
 
-const MyComponent = () => {
-  const [isOpen, setIsOpen] = useState(false);
-  const ref = useClickOutside(() => setIsOpen(false));
-  
-  return (
-    <div>
-      <button onClick={() => setIsOpen(true)}>Open Menu</button>
-      {isOpen && (
-        <div ref={ref}>
-          Click outside to close this
-        </div>
-      )}
-    </div>
-  );
-};
+return (
+  <div className={isMobile ? 'mobile-layout' : 'desktop-layout'}>
+    {/* Responsive content */}
+  </div>
+);
 ```
 
-### useWindowSize
+### UI Interaction Hooks
 
-Track browser window size.
+#### useClickOutside
+Detect clicks outside of a component (for modals, dropdowns, etc).
 
 ```jsx
-const MyComponent = () => {
-  const { width, height } = useWindowSize();
-  
-  return (
-    <div>
-      <p>Window width: {width}px</p>
-      <p>Window height: {height}px</p>
-    </div>
-  );
-};
+const [isOpen, setIsOpen] = useState(false);
+const ref = useClickOutside(() => setIsOpen(false));
+
+return (
+  <div ref={ref}>
+    {/* Your dropdown or modal content */}
+  </div>
+);
 ```
 
-### useForm
-
-Simple form handling.
+#### useHover
+Track whether an element is being hovered.
 
 ```jsx
-const SignupForm = () => {
-  const validate = (values) => {
+const [hoverRef, isHovered] = useHover();
+
+return (
+  <div ref={hoverRef}>
+    {isHovered ? 'I am being hovered!' : 'Hover me!'}
+  </div>
+);
+```
+
+#### useKeyPress
+Detect when specific keys are pressed.
+
+```jsx
+const isEnterPressed = useKeyPress('Enter');
+const isEscapePressed = useKeyPress('Escape');
+
+return (
+  <div>
+    {isEnterPressed && <p>Enter key is pressed</p>}
+    {isEscapePressed && <p>Escape key is pressed</p>}
+  </div>
+);
+```
+
+### Form Hooks
+
+#### useForm
+Complete form state management with validation.
+
+```jsx
+const {
+  values,
+  errors,
+  touched,
+  handleChange,
+  handleBlur,
+  handleSubmit
+} = useForm(
+  { email: '', password: '' },
+  (values) => console.log('Form submitted', values),
+  (values) => {
     const errors = {};
-    
-    if (!values.email) {
-      errors.email = 'Email is required';
-    } else if (!/\S+@\S+\.\S+/.test(values.email)) {
-      errors.email = 'Email is invalid';
-    }
-    
-    if (!values.password) {
-      errors.password = 'Password is required';
-    } else if (values.password.length < 8) {
-      errors.password = 'Password must be at least 8 characters';
-    }
-    
+    if (!values.email) errors.email = 'Required';
     return errors;
-  };
-  
-  const onSubmit = (values, resetForm) => {
-    console.log('Form submitted with values:', values);
-    // API call would go here
-    resetForm();
-  };
-  
-  const {
-    values,
-    errors,
-    touched,
-    handleChange,
-    handleBlur,
-    handleSubmit
-  } = useForm(
-    { email: '', password: '' },
-    onSubmit,
-    validate
-  );
-  
-  return (
-    <form onSubmit={handleSubmit}>
-      <div>
-        <label htmlFor="email">Email</label>
-        <input
-          type="email"
-          id="email"
-          name="email"
-          value={values.email}
-          onChange={handleChange}
-          onBlur={handleBlur}
-        />
-        {touched.email && errors.email && <div>{errors.email}</div>}
-      </div>
-      
-      <div>
-        <label htmlFor="password">Password</label>
-        <input
-          type="password"
-          id="password"
-          name="password"
-          value={values.password}
-          onChange={handleChange}
-          onBlur={handleBlur}
-        />
-        {touched.password && errors.password && <div>{errors.password}</div>}
-      </div>
-      
-      <button type="submit">Sign Up</button>
-    </form>
-  );
-};
+  }
+);
 ```
 
-### usePrevious
+### Browser API Hooks
 
-Hook for getting the previous value of a state or prop.
+#### useClipboard
+Copy text to clipboard with success state.
 
 ```jsx
-const Counter = () => {
-  const [count, setCount] = useState(0);
-  const prevCount = usePrevious(count);
-  
-  return (
-    <div>
-      <p>Current: {count}, Previous: {prevCount}</p>
-      <button onClick={() => setCount(count + 1)}>Increment</button>
-    </div>
-  );
-};
+const [isCopied, copyToClipboard] = useClipboard();
+
+return (
+  <button onClick={() => copyToClipboard('Text to copy')}>
+    {isCopied ? 'Copied!' : 'Copy to clipboard'}
+  </button>
+);
 ```
 
-### useIntersectionObserver
-
-Hook for observing when an element enters or exits the viewport.
+#### useGeolocation
+Access and track device location.
 
 ```jsx
-const LazyImage = ({ src, alt }) => {
-  const [ref, isVisible] = useIntersectionObserver({
-    threshold: 0.1
-  });
-  
-  return (
-    <div ref={ref}>
-      {isVisible ? (
-        <img src={src} alt={alt} />
-      ) : (
-        <div style={{ height: '300px', background: '#f0f0f0' }}>
-          Loading...
-        </div>
-      )}
-    </div>
-  );
-};
+const {
+  latitude,
+  longitude,
+  error,
+  loading
+} = useGeolocation();
+
+if (loading) return <p>Loading location...</p>;
+if (error) return <p>Error: {error.message}</p>;
+
+return (
+  <p>
+    Your location: {latitude}, {longitude}
+  </p>
+);
 ```
 
-### useOnline
-
-Hook for detecting online/offline status.
+#### useIdle
+Detect when a user is inactive.
 
 ```jsx
-const NetworkStatus = () => {
-  const isOnline = useOnline();
-  
-  return (
-    <div>
-      <p>You are currently {isOnline ? 'online' : 'offline'}</p>
-      {!isOnline && <p>Please check your internet connection</p>}
-    </div>
-  );
-};
+const isIdle = useIdle(3000); // 3 seconds
+
+return (
+  <div>
+    {isIdle ? 'User is idle' : 'User is active'}
+  </div>
+);
 ```
 
-### useClipboard
-
-Hook for copying text to the clipboard.
+#### useOnline
+Track user's online/offline status.
 
 ```jsx
-const CopyButton = ({ text }) => {
-  const [isCopied, copyToClipboard] = useClipboard();
-  
-  return (
-    <button onClick={() => copyToClipboard(text)}>
-      {isCopied ? 'Copied!' : 'Copy to clipboard'}
-    </button>
-  );
-};
+const isOnline = useOnline();
+
+return (
+  <div>
+    {isOnline ? 'You are online' : 'You are offline'}
+  </div>
+);
 ```
 
-### useKeyPress
-
-Hook for detecting key presses.
+#### usePrefersReducedMotion
+Respect user's motion preferences.
 
 ```jsx
-const ShortcutComponent = () => {
-  const isEnterPressed = useKeyPress('Enter');
-  const isEscapePressed = useKeyPress('Escape');
-  
-  return (
-    <div>
-      <p>Press Enter or Escape</p>
-      {isEnterPressed && <p>Enter pressed!</p>}
-      {isEscapePressed && <p>Escape pressed!</p>}
-    </div>
-  );
-};
+const prefersReducedMotion = usePrefersReducedMotion();
+
+// Use in animations or transitions
+const animationStyle = prefersReducedMotion
+  ? { transition: 'none' }
+  : { transition: 'all 0.5s ease' };
 ```
+
+### Element Observation Hooks
+
+#### useIntersectionObserver
+Detect when an element is visible in the viewport.
+
+```jsx
+const [ref, isVisible] = useIntersectionObserver({
+  threshold: 0.1
+});
+
+return (
+  <div ref={ref}>
+    {isVisible ? 'Element is visible' : 'Element is not visible'}
+  </div>
+);
+```
+
+#### useResizeObserver
+Track element dimensions when they change.
+
+```jsx
+const [ref, dimensions] = useResizeObserver();
+
+return (
+  <div ref={ref}>
+    Width: {dimensions.width}px, Height: {dimensions.height}px
+  </div>
+);
+```
+
+#### useWindowSize
+Get and track window dimensions.
+
+```jsx
+const { width, height } = useWindowSize();
+
+return (
+  <div>
+    Window size: {width}px × {height}px
+  </div>
+);
+```
+
+### Performance Hooks
+
+#### usePrevious
+Keep track of the previous value of a variable.
+
+```jsx
+const [count, setCount] = useState(0);
+const prevCount = usePrevious(count);
+
+return (
+  <div>
+    <p>Current: {count}, Previous: {prevCount}</p>
+    <button onClick={() => setCount(count + 1)}>Increment</button>
+  </div>
+);
+```
+
+#### useWhyDidYouUpdate
+Debug component re-renders.
+
+```jsx
+function MyComponent(props) {
+  useWhyDidYouUpdate('MyComponent', props);
+  // ... rest of component
+}
+```
+
+### Advanced State Management
+
+#### useMap
+Manage Map data structures with React state.
+
+```jsx
+const [map, { set, get, delete: remove }] = useMap([
+  ['key1', 'value1'],
+  ['key2', 'value2']
+]);
+
+return (
+  <div>
+    <button onClick={() => set('key3', 'value3')}>Add item</button>
+    <button onClick={() => remove('key1')}>Remove item</button>
+    <p>Value for key2: {get('key2')}</p>
+  </div>
+);
+```
+
+#### useSet
+Manage Set data structures with React state.
+
+```jsx
+const [set, { add, remove, has }] = useSet(['item1', 'item2']);
+
+return (
+  <div>
+    <button onClick={() => add('item3')}>Add item</button>
+    <button onClick={() => remove('item1')}>Remove item</button>
+    <p>Has item2: {has('item2') ? 'Yes' : 'No'}</p>
+  </div>
+);
+```
+
+#### useReducerWithMiddleware
+Enhanced useReducer with middleware support.
+
+```jsx
+const logger = (state, action, dispatch) => {
+  console.log('Previous state:', state);
+  console.log('Action:', action);
+  dispatch(action);
+};
+
+const [state, dispatch] = useReducerWithMiddleware(reducer, initialState, logger);
+```
+
+## Server-Side Rendering
+
+All hooks are designed to work with server-side rendering. They check for browser environment before accessing browser APIs.
+
+## TypeScript Support
+
+Full TypeScript definitions are included.
 
 ## License
 
-MIT License
-
-Copyright (c) 2025 Max Robbins
-
-Permission is hereby granted, free of charge, to any person obtaining a copy
-of this software and associated documentation files (the "Software"), to deal
-in the Software without restriction, including without limitation the rights
-to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-copies of the Software, and to permit persons to whom the Software is
-furnished to do so, subject to the following conditions:
-
-The above copyright notice and this permission notice shall be included in all
-copies or substantial portions of the Software.
-
-THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-SOFTWARE.
+MIT
