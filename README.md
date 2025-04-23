@@ -109,6 +109,31 @@ const MyComponent = () => {
 };
 ```
 
+### useClickOutside
+
+Hook for detecting clicks outside a specified element.
+
+```jsx
+import { useState } from 'react';
+import { useClickOutside } from 'use-wisely';
+
+const MyComponent = () => {
+  const [isOpen, setIsOpen] = useState(false);
+  const ref = useClickOutside(() => setIsOpen(false));
+  
+  return (
+    <div>
+      <button onClick={() => setIsOpen(true)}>Open Menu</button>
+      {isOpen && (
+        <div ref={ref}>
+          Click outside to close this
+        </div>
+      )}
+    </div>
+  );
+};
+```
+
 ## License
 
 MIT License
