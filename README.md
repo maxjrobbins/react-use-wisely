@@ -1,4 +1,3 @@
-```
 # Use Wisely
 
 A collection of useful React hooks for common tasks.
