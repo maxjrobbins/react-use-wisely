@@ -1,4 +1,5 @@
-import { useState, useEffect, Dispatch, SetStateAction } from 'react';
+import { useState, useEffect, Dispatch, SetStateAction } from "react";
+import { LocalStorageError } from "./errors";
 
 /**
  * Type for the setValue function returned by useLocalStorage
@@ -10,70 +11,104 @@ export type SetValue<T> = Dispatch<SetStateAction<T>>;
  * Hook for managing localStorage values
  * @param key - The localStorage key
  * @param initialValue - The initial value
- * @returns - [storedValue, setValue] similar to useState
+ * @returns - [storedValue, setValue, error] including any current error state
  */
-function useLocalStorage<T>(key: string, initialValue: T): [T, SetValue<T>] {
-    // State to store our value
-    const [storedValue, setStoredValue] = useState<T>(() => {
-        if (typeof window === 'undefined') {
-            return initialValue;
-        }
+function useLocalStorage<T>(
+  key: string,
+  initialValue: T
+): [T, SetValue<T>, LocalStorageError | null] {
+  // State to store our value
+  const [storedValue, setStoredValue] = useState<T>(() => {
+    if (typeof window === "undefined") {
+      return initialValue;
+    }
 
-        try {
-            // Get from local storage by key
-            const item = window.localStorage.getItem(key);
-            // Parse stored json or if none return initialValue
-            return item ? JSON.parse(item) : initialValue;
-        } catch (error) {
-            // If error also return initialValue
-            console.error(error);
-            return initialValue;
-        }
-    });
+    try {
+      // Get from local storage by key
+      const item = window.localStorage.getItem(key);
+      // Parse stored json or if none return initialValue
+      return item ? JSON.parse(item) : initialValue;
+    } catch (error) {
+      // If error also return initialValue
+      const errorMessage =
+        error instanceof Error
+          ? `Failed to parse localStorage item "${key}": ${error.message}`
+          : `Unknown error parsing localStorage item "${key}"`;
+      console.error(new LocalStorageError(errorMessage, error));
+      return initialValue;
+    }
+  });
 
-    // Return a wrapped version of useState's setter function that
-    // persists the new value to localStorage.
-    const setValue: SetValue<T> = (value) => {
+  // Add error state
+  const [error, setError] = useState<LocalStorageError | null>(null);
+
+  // Return a wrapped version of useState's setter function that
+  // persists the new value to localStorage.
+  const setValue: SetValue<T> = (value) => {
+    try {
+      // Allow value to be a function so we have same API as useState
+      const valueToStore =
+        value instanceof Function ? value(storedValue) : value;
+      // Save state
+      setStoredValue(valueToStore);
+      // Clear any previous errors
+      setError(null);
+
+      // Save to local storage
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(key, JSON.stringify(valueToStore));
+      }
+    } catch (error) {
+      const localStorageError = new LocalStorageError(
+        `Failed to store value in localStorage for key "${key}"`,
+        error,
+        { key, valueType: typeof value }
+      );
+      console.error(localStorageError);
+      setError(localStorageError);
+
+      // Still update the in-memory state even if localStorage fails
+      try {
+        const valueToStore =
+          value instanceof Function ? value(storedValue) : value;
+        setStoredValue(valueToStore);
+      } catch (stateError) {
+        console.error("Failed to update state:", stateError);
+      }
+    }
+  };
+
+  // Listen for changes to this localStorage key in other tabs/windows
+  useEffect(() => {
+    if (typeof window === "undefined") {
+      return;
+    }
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === key && e.newValue !== null) {
         try {
-            // Allow value to be a function so we have same API as useState
-            const valueToStore =
-                value instanceof Function ? value(storedValue) : value;
-            // Save state
-            setStoredValue(valueToStore);
-            // Save to local storage
-            if (typeof window !== 'undefined') {
-                window.localStorage.setItem(key, JSON.stringify(valueToStore));
-            }
+          setStoredValue(JSON.parse(e.newValue));
+          setError(null);
         } catch (error) {
-            // A more advanced implementation would handle the error case
-            console.error(error);
+          const parseError = new LocalStorageError(
+            `Failed to parse localStorage change for key "${key}"`,
+            error,
+            { key, newValue: e.newValue }
+          );
+          console.error(parseError);
+          setError(parseError);
         }
+      }
     };
 
-    // Listen for changes to this localStorage key in other tabs/windows
-    useEffect(() => {
-        if (typeof window === 'undefined') {
-            return;
-        }
+    window.addEventListener("storage", handleStorageChange);
 
-        const handleStorageChange = (e: StorageEvent) => {
-            if (e.key === key && e.newValue !== null) {
-                try {
-                    setStoredValue(JSON.parse(e.newValue));
-                } catch (error) {
-                    console.error(error);
-                }
-            }
-        };
+    return () => {
+      window.removeEventListener("storage", handleStorageChange);
+    };
+  }, [key]);
 
-        window.addEventListener('storage', handleStorageChange);
-
-        return () => {
-            window.removeEventListener('storage', handleStorageChange);
-        };
-    }, [key]);
-
-    return [storedValue, setValue];
+  return [storedValue, setValue, error];
 }
 
 export default useLocalStorage;

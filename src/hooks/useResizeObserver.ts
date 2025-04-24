@@ -1,5 +1,6 @@
 // Track element dimensions changes
 import { useState, useEffect, useRef, MutableRefObject } from "react";
+import { ResizeObserverError, ResizeObserverNotSupportedError } from "./errors";
 
 // Define the dimensions object type
 interface DimensionsObject {
@@ -16,48 +17,81 @@ interface DimensionsObject {
 /**
  * Hook that observes an element's dimensions
  * @template T - The type of HTML element to observe
- * @returns [ref, dimensions] - Ref to attach and current dimensions
+ * @returns [ref, dimensions, error] - Ref to attach, current dimensions, and any error that occurred
  */
 const useResizeObserver = <T extends HTMLElement = HTMLElement>(): [
   MutableRefObject<T | null>,
-  DimensionsObject
+  DimensionsObject,
+  ResizeObserverError | null
 ] => {
   const [dimensions, setDimensions] = useState<DimensionsObject>({});
+  const [error, setError] = useState<ResizeObserverError | null>(null);
   const ref = useRef<T | null>(null);
 
   useEffect(() => {
     if (!ref.current) return;
 
+    // Check if ResizeObserver is supported
     if (typeof ResizeObserver === "undefined") {
-      console.warn("ResizeObserver is not supported in this browser");
+      const notSupportedError = new ResizeObserverNotSupportedError();
+      setError(notSupportedError);
       return;
     }
 
+    let resizeObserver: ResizeObserver;
     const element = ref.current;
-    const resizeObserver = new ResizeObserver((entries) => {
-      if (!entries.length) return;
 
-      const { contentRect } = entries[0];
-      setDimensions({
-        width: contentRect.width,
-        height: contentRect.height,
-        top: contentRect.top,
-        left: contentRect.left,
-        right: contentRect.right,
-        bottom: contentRect.bottom,
-        x: contentRect.x,
-        y: contentRect.y,
+    try {
+      resizeObserver = new ResizeObserver((entries) => {
+        try {
+          if (!entries.length) return;
+
+          const { contentRect } = entries[0];
+          setDimensions({
+            width: contentRect.width,
+            height: contentRect.height,
+            top: contentRect.top,
+            left: contentRect.left,
+            right: contentRect.right,
+            bottom: contentRect.bottom,
+            x: contentRect.x,
+            y: contentRect.y,
+          });
+
+          // Clear any previous errors on successful observation
+          if (error) setError(null);
+        } catch (observeError) {
+          const resizeError = new ResizeObserverError(
+            "Error processing resize entries",
+            observeError
+          );
+          setError(resizeError);
+        }
       });
-    });
 
-    resizeObserver.observe(element);
+      resizeObserver.observe(element);
+    } catch (initError) {
+      const resizeError = new ResizeObserverError(
+        "Failed to initialize ResizeObserver",
+        initError
+      );
+      setError(resizeError);
+      return;
+    }
 
     return () => {
-      resizeObserver.disconnect();
+      try {
+        resizeObserver.disconnect();
+      } catch (disconnectError) {
+        // We're in cleanup, so we can't use setState here
+        // Just log the error since this is during component unmount
+        console.error("Error disconnecting ResizeObserver:", disconnectError);
+      }
     };
   }, []); // Empty dependency array is better, ref.current won't trigger re-renders anyway
 
-  return [ref, dimensions];
+  return [ref, dimensions, error];
 };
 
+export { ResizeObserverError, ResizeObserverNotSupportedError };
 export default useResizeObserver;

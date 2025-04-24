@@ -1,5 +1,6 @@
 // Access device location
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { GeolocationError } from "./errors";
 
 // Type definitions
 export interface GeolocationState {
@@ -12,15 +13,37 @@ export interface GeolocationState {
   longitude: number | null;
   speed: number | null;
   timestamp: number | null;
-  error: Error | GeolocationPositionError | null;
+  error: GeolocationError | null;
 }
+
+/**
+ * Get human-readable error message from GeolocationPositionError
+ */
+const getGeolocationErrorMessage = (
+  error: GeolocationPositionError
+): string => {
+  switch (error.code) {
+    case 1:
+      return "Geolocation permission denied";
+    case 2:
+      return "Position unavailable. The network is down or the positioning satellites cannot be contacted";
+    case 3:
+      return "Geolocation request timed out";
+    default:
+      return `Geolocation error: ${error.message}`;
+  }
+};
 
 /**
  * Hook that provides geolocation data
  * @param options - Geolocation API options
  * @returns Geolocation state and error
  */
-const useGeolocation = (options: PositionOptions = {}): GeolocationState => {
+const useGeolocation = (
+  options: PositionOptions = {}
+): GeolocationState & {
+  retry: () => void;
+} => {
   const [state, setState] = useState<GeolocationState>({
     loading: true,
     accuracy: null,
@@ -34,15 +57,28 @@ const useGeolocation = (options: PositionOptions = {}): GeolocationState => {
     error: null,
   });
 
+  // Function to retry getting location after error
+  const retry = useCallback(() => {
+    setState((prev) => ({
+      ...prev,
+      loading: true,
+      error: null,
+    }));
+  }, []);
+
   useEffect(() => {
     if (!navigator.geolocation) {
       setState((prevState) => ({
         ...prevState,
         loading: false,
-        error: new Error("Geolocation is not supported by your browser"),
+        error: new GeolocationError(
+          "Geolocation is not supported by your browser"
+        ),
       }));
       return;
     }
+
+    let watchId: number;
 
     const geoSuccess = (position: GeolocationPosition) => {
       const {
@@ -73,27 +109,46 @@ const useGeolocation = (options: PositionOptions = {}): GeolocationState => {
     };
 
     const geoError = (error: GeolocationPositionError) => {
+      const errorMessage = getGeolocationErrorMessage(error);
+      console.warn(`Geolocation error (${error.code}): ${errorMessage}`);
+
       setState((prevState) => ({
         ...prevState,
         loading: false,
-        error: error,
+        error: new GeolocationError(errorMessage, error),
       }));
     };
 
-    // Start watching position
-    const watchId = navigator.geolocation.watchPosition(
-      geoSuccess,
-      geoError,
-      options
-    );
+    try {
+      // Start watching position
+      watchId = navigator.geolocation.watchPosition(
+        geoSuccess,
+        geoError,
+        options
+      );
+    } catch (error) {
+      setState((prevState) => ({
+        ...prevState,
+        loading: false,
+        error: new GeolocationError(
+          error instanceof Error ? error.message : "Unknown geolocation error",
+          error instanceof Error ? error : undefined
+        ),
+      }));
+    }
 
     // Clean up
     return () => {
-      navigator.geolocation.clearWatch(watchId);
+      if (watchId !== undefined) {
+        navigator.geolocation.clearWatch(watchId);
+      }
     };
-  }, [options]);
+  }, [options, state.loading]); // Re-run when retry is called
 
-  return state;
+  return {
+    ...state,
+    retry,
+  };
 };
 
 export default useGeolocation;

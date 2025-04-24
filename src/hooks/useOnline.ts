@@ -1,29 +1,84 @@
 // Track online status
 import { useState, useEffect } from "react";
+import { NetworkError } from "./errors";
+
+interface OnlineState {
+  isOnline: boolean;
+  error: NetworkError | null;
+  lastChanged: Date | null;
+}
 
 /**
  * Hook that tracks online status
- * @returns True if the user is online
+ * @returns An object with online status and error information
  */
-const useOnline = (): boolean => {
-  const [isOnline, setIsOnline] = useState<boolean>(
-    typeof navigator !== "undefined" ? navigator.onLine : true
-  );
+const useOnline = (): OnlineState => {
+  const [state, setState] = useState<OnlineState>(() => {
+    try {
+      return {
+        isOnline: typeof navigator !== "undefined" ? navigator.onLine : true,
+        error: null,
+        lastChanged: null,
+      };
+    } catch (error) {
+      const networkError = new NetworkError(
+        "Failed to determine initial online status",
+        error
+      );
+      console.error(networkError);
+      return {
+        isOnline: true, // Assume online by default
+        error: networkError,
+        lastChanged: null,
+      };
+    }
+  });
 
   useEffect(() => {
-    const handleOnline = (): void => setIsOnline(true);
-    const handleOffline = (): void => setIsOnline(false);
+    if (typeof window === "undefined") {
+      // SSR environment - don't try to add listeners
+      return;
+    }
 
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
+    try {
+      const handleOnline = (): void => {
+        setState({
+          isOnline: true,
+          error: null,
+          lastChanged: new Date(),
+        });
+      };
 
-    return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
-    };
+      const handleOffline = (): void => {
+        setState({
+          isOnline: false,
+          error: null,
+          lastChanged: new Date(),
+        });
+      };
+
+      window.addEventListener("online", handleOnline);
+      window.addEventListener("offline", handleOffline);
+
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        window.removeEventListener("offline", handleOffline);
+      };
+    } catch (error) {
+      const networkError = new NetworkError(
+        "Failed to set up network status listeners",
+        error
+      );
+      console.error(networkError);
+      setState((prev) => ({
+        ...prev,
+        error: networkError,
+      }));
+      return () => {};
+    }
   }, []);
 
-  return isOnline;
+  return state;
 };
 
 export default useOnline;

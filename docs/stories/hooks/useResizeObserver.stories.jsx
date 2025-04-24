@@ -1,23 +1,23 @@
 import React, { useState } from "react";
-import useResizeObserver from "../../../src/hooks/useResizeObserver";
+import useResizeObserver, {
+  ResizeObserverNotSupportedError,
+} from "../../../src/hooks/useResizeObserver";
 
 export default {
   title: "Hooks/useResizeObserver",
   parameters: {
-    componentSubtitle: "Hook that tracks element size changes",
+    componentSubtitle: "Hook to track element dimensions",
     docs: {
       description: {
         component:
-          "A React hook that observes and reports size changes of a DOM element using ResizeObserver API.",
+          "A React hook that tracks the dimensions of an element with error handling for browser compatibility.",
       },
     },
   },
 };
 
 export const Default = () => {
-  const [containerWidth, setContainerWidth] = useState(400);
-  const [ref, dimensions] = useResizeObserver();
-  const { width, height } = dimensions;
+  const [ref, dimensions, error] = useResizeObserver();
 
   return (
     <div
@@ -25,129 +25,255 @@ export const Default = () => {
     >
       <h3>Resize Observer Demo</h3>
 
-      <p style={{ marginBottom: "20px" }}>
-        This hook detects when an element changes size. Drag the slider below to
-        change the container's width and observe the measurements updating in
-        real-time.
-      </p>
-
-      <div style={{ marginBottom: "20px" }}>
-        <label
-          htmlFor="width-control"
-          style={{ display: "block", marginBottom: "8px" }}
+      {error && (
+        <div
+          style={{
+            padding: "10px",
+            backgroundColor: "#ffebee",
+            color: "#c62828",
+            borderRadius: "4px",
+            marginBottom: "10px",
+            border: "1px solid #ef9a9a",
+          }}
         >
-          Container Width: {containerWidth}px
-        </label>
-        <input
-          id="width-control"
-          type="range"
-          min="200"
-          max="600"
-          value={containerWidth}
-          onChange={(e) => setContainerWidth(Number(e.target.value))}
-          style={{ width: "100%" }}
-        />
-      </div>
+          <strong>Error:</strong> {error.message}
+        </div>
+      )}
 
-      <div
-        style={{
-          width: `${containerWidth}px`,
-          border: "2px dashed #2196F3",
-          padding: "20px",
-          marginBottom: "20px",
-          transition: "all 0.3s ease",
-        }}
-      >
+      <div>
+        <p style={{ marginBottom: "10px" }}>
+          Resize this box to see dimensions change:
+        </p>
         <div
           ref={ref}
           style={{
-            backgroundColor: "#e3f2fd",
             padding: "20px",
-            borderRadius: "4px",
-            border: "1px solid #bbdefb",
-            height: "150px",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            flexDirection: "column",
-            textAlign: "center",
-            position: "relative",
-            overflow: "hidden",
+            border: "2px dashed #2196F3",
+            backgroundColor: "#E3F2FD",
+            resize: "both",
+            overflow: "auto",
+            minHeight: "100px",
+            minWidth: "200px",
+            maxWidth: "100%",
           }}
         >
-          <h4 style={{ margin: "0 0 10px 0" }}>Observed Element</h4>
-          <p>My size is being tracked</p>
-
-          {width && height && (
-            <div
-              style={{
-                position: "absolute",
-                bottom: 0,
-                right: 0,
-                backgroundColor: "rgba(33, 150, 243, 0.8)",
-                color: "white",
-                padding: "6px 10px",
-                fontSize: "14px",
-                borderTopLeftRadius: "4px",
-              }}
-            >
-              {Math.round(width)}px × {Math.round(height)}px
+          <div>Resize from bottom-right corner ↘</div>
+          {dimensions.width && dimensions.height ? (
+            <div style={{ marginTop: "10px" }}>
+              Current dimensions: {Math.round(dimensions.width)}px x{" "}
+              {Math.round(dimensions.height)}px
             </div>
+          ) : (
+            <div>Loading dimensions...</div>
           )}
         </div>
       </div>
 
-      <div
-        style={{
-          backgroundColor: "#f5f5f5",
-          padding: "15px",
-          borderRadius: "4px",
-          marginBottom: "20px",
-        }}
-      >
-        <h4 style={{ marginTop: "0" }}>Element Dimensions</h4>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <tbody>
-            <tr>
-              <td
-                style={{
-                  padding: "8px",
-                  border: "1px solid #ddd",
-                  fontWeight: "bold",
-                }}
-              >
-                Width
-              </td>
-              <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                {width ? `${Math.round(width)}px` : "Not measured yet"}
-              </td>
-            </tr>
-            <tr>
-              <td
-                style={{
-                  padding: "8px",
-                  border: "1px solid #ddd",
-                  fontWeight: "bold",
-                }}
-              >
-                Height
-              </td>
-              <td style={{ padding: "8px", border: "1px solid #ddd" }}>
-                {height ? `${Math.round(height)}px` : "Not measured yet"}
-              </td>
-            </tr>
-          </tbody>
-        </table>
+      <div style={{ marginTop: "20px" }}>
+        <h4>Current dimensions:</h4>
+        <pre
+          style={{
+            padding: "10px",
+            backgroundColor: "#f5f5f5",
+            borderRadius: "4px",
+            overflow: "auto",
+          }}
+        >
+          {JSON.stringify(dimensions, null, 2)}
+        </pre>
       </div>
-
-      <p style={{ fontStyle: "italic", color: "#666" }}>
-        The ResizeObserver API allows you to respond to changes in an element's
-        size without causing layout thrashing or using polling. This is useful
-        for responsive components that need to adapt their behavior based on
-        their container's size rather than just the viewport.
-      </p>
     </div>
   );
 };
 
 Default.storyName = "Basic Usage";
+
+export const WithErrorHandling = () => {
+  const [ref, dimensions, error] = useResizeObserver();
+  const [mockError, setMockError] = useState(false);
+  const [browserSupport, setBrowserSupport] = useState(true);
+
+  // Force a mock error for demonstration
+  const triggerMockError = () => {
+    setMockError(true);
+    setBrowserSupport(false);
+  };
+
+  // Reset error state
+  const resetError = () => {
+    setMockError(false);
+    setBrowserSupport(true);
+  };
+
+  // If we're showing a mock error, display that instead of the real error
+  const displayError = mockError
+    ? new ResizeObserverNotSupportedError()
+    : error;
+
+  return (
+    <div
+      style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
+    >
+      <h3>Resize Observer with Error Handling</h3>
+
+      <div
+        style={{
+          marginBottom: "20px",
+          display: "flex",
+          gap: "10px",
+        }}
+      >
+        <button
+          onClick={triggerMockError}
+          style={{
+            padding: "8px 12px",
+            backgroundColor: "#f44336",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Simulate Browser Incompatibility
+        </button>
+        <button
+          onClick={resetError}
+          style={{
+            padding: "8px 12px",
+            backgroundColor: "#4CAF50",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Reset
+        </button>
+      </div>
+
+      <div
+        style={{
+          padding: "15px",
+          backgroundColor: "#e8f5e9",
+          borderRadius: "4px",
+          marginBottom: "20px",
+          border: "1px solid #c8e6c9",
+        }}
+      >
+        <h4 style={{ margin: "0 0 10px 0" }}>Browser Compatibility:</h4>
+        <div style={{ display: "flex", alignItems: "center" }}>
+          <div
+            style={{
+              width: "12px",
+              height: "12px",
+              borderRadius: "50%",
+              backgroundColor: browserSupport ? "#4CAF50" : "#f44336",
+              marginRight: "8px",
+            }}
+          ></div>
+          <span>
+            <strong>ResizeObserver:</strong>{" "}
+            {browserSupport ? "Supported" : "Not supported"}
+          </span>
+        </div>
+      </div>
+
+      {displayError ? (
+        <div
+          style={{
+            padding: "15px",
+            backgroundColor: "#ffebee",
+            color: "#c62828",
+            borderRadius: "4px",
+            marginBottom: "20px",
+            border: "1px solid #ffcdd2",
+          }}
+        >
+          <h4 style={{ margin: "0 0 10px 0" }}>
+            <span
+              role="img"
+              aria-label="warning"
+              style={{ marginRight: "8px" }}
+            >
+              ⚠️
+            </span>
+            Error Detected:
+          </h4>
+          <div>
+            <strong>Message:</strong> {displayError.message}
+          </div>
+          <div style={{ marginTop: "15px" }}>
+            <h5 style={{ margin: "0 0 8px 0" }}>Fallback Behavior:</h5>
+            <p style={{ margin: "0" }}>
+              When ResizeObserver is not supported, the hook will:
+            </p>
+            <ul style={{ marginTop: "5px" }}>
+              <li>Return an empty dimensions object</li>
+              <li>Provide an error with details about the issue</li>
+              <li>Allow your app to implement fallback UI</li>
+            </ul>
+          </div>
+        </div>
+      ) : (
+        <div
+          ref={ref}
+          style={{
+            padding: "20px",
+            border: "2px dashed #2196F3",
+            backgroundColor: "#E3F2FD",
+            resize: "both",
+            overflow: "auto",
+            minHeight: "100px",
+            minWidth: "200px",
+            maxWidth: "100%",
+          }}
+        >
+          <div>Resize from bottom-right corner ↘</div>
+          {dimensions.width && dimensions.height ? (
+            <div style={{ marginTop: "10px" }}>
+              Current dimensions: {Math.round(dimensions.width)}px x{" "}
+              {Math.round(dimensions.height)}px
+            </div>
+          ) : (
+            <div>Loading dimensions...</div>
+          )}
+        </div>
+      )}
+
+      {!displayError && (
+        <div style={{ marginTop: "20px" }}>
+          <h4>Current dimensions:</h4>
+          <pre
+            style={{
+              padding: "10px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+              overflow: "auto",
+            }}
+          >
+            {JSON.stringify(dimensions, null, 2)}
+          </pre>
+        </div>
+      )}
+
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "10px",
+          backgroundColor: "#fff9c4",
+          borderRadius: "4px",
+          border: "1px solid #fff59d",
+        }}
+      >
+        <h4 style={{ margin: "0 0 8px 0" }}>About Error Handling:</h4>
+        <p style={{ margin: "0" }}>
+          This demo shows how the hook handles cases where ResizeObserver isn't
+          supported or when other errors occur. Click "Simulate Browser
+          Incompatibility" to see error handling in action.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+WithErrorHandling.storyName = "With Error Handling";
