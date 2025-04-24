@@ -1,14 +1,19 @@
 import React, { FC } from "react";
 import { render, screen, act } from "@testing-library/react";
 import useOnline from "../../hooks/useOnline";
+import { NetworkError } from "../../hooks/errors";
 
 // A test component that uses the hook
 const TestComponent: FC = () => {
-  const isOnline = useOnline();
+  const { isOnline, error, lastChanged } = useOnline();
 
   return (
     <div>
       <div data-testid="status">{isOnline ? "Online" : "Offline"}</div>
+      {error && <div data-testid="error">{error.message}</div>}
+      {lastChanged && (
+        <div data-testid="last-changed">{lastChanged.toISOString()}</div>
+      )}
     </div>
   );
 };
@@ -19,12 +24,19 @@ describe("useOnline", () => {
 
   // Reset navigator.onLine after each test
   afterEach(() => {
-    // Set navigator.onLine back to its original value
-    Object.defineProperty(window.navigator, "onLine", {
-      configurable: true,
-      value: originalOnLine,
-      writable: true,
-    });
+    if (window.navigator) {
+      // Set navigator.onLine back to its original value
+      try {
+        Object.defineProperty(window.navigator, "onLine", {
+          configurable: true,
+          value: originalOnLine,
+          writable: true,
+        });
+      } catch (e) {
+        // Some tests might modify navigator, making this fail
+        console.log("Could not restore navigator.onLine");
+      }
+    }
   });
 
   test("should return true when navigator.onLine is true", () => {
@@ -77,6 +89,7 @@ describe("useOnline", () => {
     });
 
     expect(screen.getByTestId("status").textContent).toBe("Online");
+    expect(screen.getByTestId("last-changed")).toBeInTheDocument();
   });
 
   test("should update when offline event is triggered", () => {
@@ -103,6 +116,7 @@ describe("useOnline", () => {
     });
 
     expect(screen.getByTestId("status").textContent).toBe("Offline");
+    expect(screen.getByTestId("last-changed")).toBeInTheDocument();
   });
 
   test("should add and remove event listeners correctly", () => {
@@ -147,27 +161,37 @@ describe("useOnline", () => {
       "navigator"
     );
 
-    // Mock missing navigator
+    // Mock a function that throws when checking navigator.onLine
     Object.defineProperty(window, "navigator", {
       configurable: true,
-      value: undefined,
-      writable: true,
+      get: () => {
+        const mockNav = {};
+        Object.defineProperty(mockNav, "onLine", {
+          get: () => {
+            throw new Error("Failed to determine initial online status");
+          },
+        });
+        return mockNav;
+      },
     });
 
     // Suppress console errors for this test
     const originalConsoleError = console.error;
     console.error = jest.fn();
 
-    // This should not throw an error, but default to true
-    const { unmount } = render(<TestComponent />);
+    // This should not throw an error, but default to true with an error
+    render(<TestComponent />);
 
     // Should default to online
     expect(screen.getByTestId("status").textContent).toBe("Online");
 
-    // Clean up
-    unmount();
+    // Should have an error
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "determine initial online status"
+    );
 
-    // Restore original navigator
+    // Clean up
     if (navigatorDescriptor) {
       Object.defineProperty(window, "navigator", navigatorDescriptor);
     } else {
@@ -175,6 +199,30 @@ describe("useOnline", () => {
       (window as any).navigator = originalNavigator;
     }
 
+    console.error = originalConsoleError;
+  });
+
+  test("should report network errors", () => {
+    // Mock window.addEventListener to throw an error
+    const originalAddEventListener = window.addEventListener;
+    window.addEventListener = jest.fn().mockImplementation(() => {
+      throw new Error("Failed to add event listener");
+    });
+
+    // Suppress console errors for this test
+    const originalConsoleError = console.error;
+    console.error = jest.fn();
+
+    render(<TestComponent />);
+
+    // Should have an error
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Failed to set up network status listeners"
+    );
+
+    // Cleanup
+    window.addEventListener = originalAddEventListener;
     console.error = originalConsoleError;
   });
 });

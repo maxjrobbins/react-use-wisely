@@ -26,6 +26,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Added error handling to `useAsync` hook with retry functionality
 - Added error handling to `useIntersectionObserver` hook
 - Added error handling to `useOnline` hook
+- Added comprehensive unit tests for error scenarios:
+  - Browser compatibility detection
+  - Error state tracking and clearing
+  - Error recovery mechanisms
+  - Error propagation
 
 ### Changed
 

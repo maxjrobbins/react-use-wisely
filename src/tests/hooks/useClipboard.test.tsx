@@ -15,12 +15,13 @@ function TestComponent({
   text = "Test text",
   timeout = 2000,
 }: TestComponentProps): ReactElement {
-  const [isCopied, copyToClipboard] = useClipboard(timeout);
+  const { isCopied, copy, error } = useClipboard(timeout);
 
   return (
     <div>
       <div data-testid="status">{isCopied ? "Copied!" : "Not copied"}</div>
-      <button data-testid="copy-button" onClick={() => copyToClipboard(text)}>
+      {error && <div data-testid="error">{error.message}</div>}
+      <button data-testid="copy-button" onClick={() => copy(text)}>
         Copy to Clipboard
       </button>
     </div>
@@ -147,8 +148,11 @@ describe("useClipboard", () => {
       fireEvent.click(screen.getByTestId("copy-button"));
     });
 
-    // Should have logged the error
-    expect(consoleErrorSpy).toHaveBeenCalled();
+    // Should have an error now instead of just logging
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Failed to copy text using fallback method"
+    );
 
     // Status should not change on error
     expect(screen.getByTestId("status").textContent).toBe("Not copied");
@@ -175,8 +179,11 @@ describe("useClipboard", () => {
       fireEvent.click(screen.getByTestId("copy-button"));
     });
 
-    // Should have logged the error
-    expect(consoleErrorSpy).toHaveBeenCalled();
+    // Should have an error now
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Failed to copy text to clipboard"
+    );
 
     // Status should not change on error
     expect(screen.getByTestId("status").textContent).toBe("Not copied");
@@ -197,5 +204,28 @@ describe("useClipboard", () => {
     expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
       "Different text"
     );
+  });
+
+  test("should provide ClipboardError instance on error", async () => {
+    // Make clipboard.writeText reject with a specific error type
+    navigator.clipboard.writeText = jest
+      .fn()
+      .mockRejectedValue(
+        new DOMException("Permission denied", "NotAllowedError")
+      );
+
+    render(<TestComponent />);
+
+    // Click the copy button
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("copy-button"));
+    });
+
+    // Should have an error of the correct type
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+
+    // Check if the component displays the error
+    const errorText = screen.getByTestId("error").textContent;
+    expect(errorText).toContain("Permission to access clipboard was denied");
   });
 });

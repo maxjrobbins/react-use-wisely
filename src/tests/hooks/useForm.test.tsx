@@ -1,6 +1,7 @@
 import React, { ReactElement } from "react";
 import { render, screen, fireEvent, act } from "@testing-library/react";
 import useForm, { FormErrors } from "../../hooks/useForm";
+import { FormError } from "../../hooks/errors";
 
 interface FormValues {
   name: string;
@@ -9,7 +10,10 @@ interface FormValues {
 
 interface TestFormProps {
   initialValues: FormValues;
-  onSubmit: (values: FormValues, resetForm: () => void) => void;
+  onSubmit: (
+    values: FormValues,
+    formActions: { resetForm: () => void }
+  ) => void;
   validate?: (values: FormValues) => FormErrors<FormValues>;
 }
 
@@ -24,6 +28,8 @@ function TestForm({
     errors,
     touched,
     isSubmitting,
+    isValid,
+    formError,
     handleChange,
     handleBlur,
     handleSubmit,
@@ -56,6 +62,8 @@ function TestForm({
         <div data-testid="email-error">{errors.email}</div>
       )}
 
+      {formError && <div data-testid="form-error">{formError.message}</div>}
+
       <button data-testid="submit-button" type="submit" disabled={isSubmitting}>
         Submit
       </button>
@@ -69,6 +77,8 @@ function TestForm({
       <div data-testid="touched-display">{JSON.stringify(touched)}</div>
 
       <div data-testid="submitting-display">{isSubmitting.toString()}</div>
+
+      <div data-testid="valid-display">{isValid.toString()}</div>
     </form>
   );
 }
@@ -165,10 +175,9 @@ describe("useForm", () => {
       fireEvent.submit(form);
     });
 
-    expect(mockSubmit).toHaveBeenCalledWith(
-      initialValues,
-      expect.any(Function)
-    );
+    expect(mockSubmit).toHaveBeenCalledWith(initialValues, {
+      resetForm: expect.any(Function),
+    });
     expect(screen.getByTestId("submitting-display").textContent).toBe("true");
   });
 
@@ -279,5 +288,79 @@ describe("useForm", () => {
 
     expect(emailValidate).toHaveBeenCalledTimes(2);
     expect(screen.queryByTestId("email-error")).not.toBeInTheDocument();
+  });
+
+  test("should handle errors during form submission", async () => {
+    // Mock a failing submit function
+    const failingSubmit = jest.fn().mockImplementation(() => {
+      throw new Error("Submission failed");
+    });
+
+    // Suppress console.error for this test
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<TestForm initialValues={initialValues} onSubmit={failingSubmit} />);
+
+    const form = screen.getByTestId("form");
+
+    await act(async () => {
+      fireEvent.submit(form);
+    });
+
+    // Form should have an error
+    expect(screen.getByTestId("form-error")).toBeInTheDocument();
+    expect(screen.getByTestId("form-error").textContent).toBe(
+      "Submission failed"
+    );
+
+    // Should not be submitting anymore
+    expect(screen.getByTestId("submitting-display").textContent).toBe("false");
+
+    // Form should be invalid
+    expect(screen.getByTestId("valid-display").textContent).toBe("false");
+
+    // Clean up spy
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("should handle errors during validation", async () => {
+    // Create a validate function that throws an error
+    const throwingValidate = jest.fn().mockImplementation(() => {
+      throw new Error("Validation crashed");
+    });
+
+    // Suppress console.error for this test
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(
+      <TestForm
+        initialValues={initialValues}
+        onSubmit={mockSubmit}
+        validate={throwingValidate}
+      />
+    );
+
+    const nameInput = screen.getByTestId("name-input");
+
+    // Trigger validation on blur
+    await act(async () => {
+      fireEvent.blur(nameInput);
+    });
+
+    // Should have a form error
+    expect(screen.getByTestId("form-error")).toBeInTheDocument();
+    expect(screen.getByTestId("form-error").textContent).toBe(
+      "Validation error occurred"
+    );
+
+    // Form should be invalid
+    expect(screen.getByTestId("valid-display").textContent).toBe("false");
+
+    // Clean up spy
+    consoleErrorSpy.mockRestore();
   });
 });

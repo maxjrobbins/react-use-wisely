@@ -1,6 +1,7 @@
 import React, { FC } from "react";
 import { render, screen, act } from "@testing-library/react";
 import useMedia from "../../hooks/useMedia";
+import { MediaError } from "../../hooks/errors";
 
 interface TestComponentProps {
   query: string;
@@ -9,13 +10,14 @@ interface TestComponentProps {
 
 // A test component that uses the hook
 const TestComponent: FC<TestComponentProps> = ({ query, defaultState }) => {
-  const matches = useMedia(query, defaultState);
+  const { matches, error } = useMedia(query, defaultState);
 
   return (
     <div>
       <div data-testid="matches">
         {matches ? "Media query matches" : "Media query does not match"}
       </div>
+      {error && <div data-testid="error">{error.message}</div>}
     </div>
   );
 };
@@ -64,6 +66,8 @@ describe("useMedia", () => {
     expect(screen.getByTestId("matches").textContent).toBe(
       "Media query matches"
     );
+    // No error should be present
+    expect(screen.queryByTestId("error")).toBeNull();
   });
 
   test("should update when media query changes", () => {
@@ -98,6 +102,62 @@ describe("useMedia", () => {
     expect(screen.getByTestId("matches").textContent).toBe(
       "Media query matches"
     );
+  });
+
+  test("should handle matchMedia API not being available", () => {
+    // Save original implementation
+    const originalMatchMedia = window.matchMedia;
+
+    // Mock implementation that returns undefined when accessed
+    (window.matchMedia as jest.Mock).mockImplementation(() => {
+      // This simulates matchMedia not being available - throws when used
+      throw new Error("matchMedia is not implemented");
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+
+    // Should use default state
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query does not match"
+    );
+
+    // Should have an error
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Error setting up media query"
+    );
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("should handle errors in matchMedia", () => {
+    // Mock matchMedia to throw an error
+    (window.matchMedia as jest.Mock).mockImplementation(() => {
+      throw new Error("Failed to initialize matchMedia");
+    });
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+
+    // Should use default state
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query matches"
+    );
+
+    // Should have an error
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Error setting up media query"
+    );
+
+    consoleErrorSpy.mockRestore();
   });
 
   test("should support older browsers with addListener/removeListener", () => {
