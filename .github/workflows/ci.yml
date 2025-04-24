@@ -56,9 +56,6 @@ jobs:
       - name: Build Storybook
         run: cd docs && npm run build-storybook
 
-      - name: Check for Storybook build errors
-        run: cd docs && npx sb check
-
   lint:
     runs-on: ubuntu-latest
 
