@@ -2,8 +2,13 @@ import React from 'react';
 import { render, screen, act } from '@testing-library/react';
 import useLocalStorage from '../../hooks/useLocalStorage';
 
+// Add typing to the test component props
+interface TestComponentProps {
+	initialValue: string;
+}
+
 // A simple test component that uses the hook
-function TestComponent({ initialValue }) {
+function TestComponent({ initialValue }: TestComponentProps) {
 	const [value, setValue] = useLocalStorage('test-key', initialValue);
 
 	return (
