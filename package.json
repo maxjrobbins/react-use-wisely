@@ -1,6 +1,6 @@
 {
-  "name": "use-wisely",
-  "version": "1.0.2",
+  "name": "react-use-wisely",
+  "version": "1.0.0",
   "description": "A collection of utility hooks for React applications.",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -25,7 +25,7 @@
     "custom-hooks",
     "typescript"
   ],
-  "author": "Max Robbins",
+  "author": "mrobbins18",
   "license": "MIT",
   "peerDependencies": {
     "react": "^16.8.0 || ^17.0.0 || ^18.0.0"
@@ -66,6 +66,7 @@
     "@rollup/plugin-babel": "^6.0.4",
     "@rollup/plugin-commonjs": "^28.0.3",
     "@rollup/plugin-node-resolve": "^16.0.1",
+    "@rollup/plugin-typescript": "^12.1.2",
     "@testing-library/jest-dom": "^6.6.3",
     "@testing-library/react": "^13.4.0",
     "@testing-library/react-hooks": "^8.0.1",

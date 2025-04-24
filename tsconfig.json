@@ -17,9 +17,18 @@
     "declaration": true,
     "declarationDir": "dist/types",
     "outDir": "dist",
+    "rootDir": "src",
     "sourceMap": true,
-    "types": ["jest", "node", "@testing-library/jest-dom"]
+    "types": ["jest", "node", "@testing-library/jest-dom"],
+    "composite": true
   },
-  "include": ["src"],
-  "exclude": ["node_modules", "dist"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/*.test.ts",
+    "**/*.test.tsx",
+    "src/tests/**/*",
+    "src/**/__mocks__/**"
+  ]
 }
