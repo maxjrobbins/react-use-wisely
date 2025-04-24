@@ -10,18 +10,19 @@ const useWhyDidYouUpdate = <T extends Record<string, any>>(
   componentName: string,
   props: T
 ): void => {
-  // Only run in development
-  if (process.env.NODE_ENV === "production") {
-    return;
-  }
-
-  // Store previous props
+  // Store previous props - always declare refs unconditionally
   const prevProps = useRef<T | undefined>(undefined);
-
   // Use ref to track if we've already logged in this render cycle
   const didLog = useRef<boolean>(false);
+  // Track if we're in production mode
+  const isProduction = process.env.NODE_ENV === "production";
 
   useEffect(() => {
+    // Skip if in production
+    if (isProduction) {
+      return;
+    }
+
     // Skip first render
     if (!prevProps.current) {
       prevProps.current = { ...props };
@@ -53,7 +54,7 @@ const useWhyDidYouUpdate = <T extends Record<string, any>>(
 
     // Update previous props with a complete copy
     prevProps.current = { ...props };
-  }, [props, componentName]);
+  }, [props, componentName, isProduction]);
 };
 
 export default useWhyDidYouUpdate;

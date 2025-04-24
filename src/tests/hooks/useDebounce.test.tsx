@@ -1,4 +1,4 @@
-import React, { useState, useEffect, ReactElement } from "react";
+import React, { useState, useEffect as _useEffect, ReactElement } from "react";
 import { render, screen, act } from "@testing-library/react";
 import useDebounce from "../../hooks/useDebounce";
 

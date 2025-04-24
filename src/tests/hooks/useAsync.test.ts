@@ -28,7 +28,7 @@ describe("useAsync", () => {
 
     // Execute the async function
     await act(async () => {
-      const response = await result.current.execute("test value");
+      const _response = await result.current.execute("test value");
 
       expect(mockSuccessFunction).toHaveBeenCalledWith("test value");
     });
@@ -47,7 +47,7 @@ describe("useAsync", () => {
     await act(async () => {
       try {
         await result.current.execute();
-      } catch (error) {
+      } catch (_error) {
         expect(mockErrorFunction).toHaveBeenCalled();
       }
     });

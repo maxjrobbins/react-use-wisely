@@ -1,5 +1,11 @@
 // Track element hover state
-import { useState, useEffect, useRef, useCallback, RefObject } from "react";
+import {
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  type RefObject as _RefObject,
+} from "react";
 
 /**
  * Hook for tracking hover state on an element

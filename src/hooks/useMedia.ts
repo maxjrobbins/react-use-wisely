@@ -13,7 +13,7 @@ const useMedia = (query: string, defaultState = false): boolean => {
       return window.matchMedia
         ? window.matchMedia(query).matches
         : defaultState;
-    } catch (e) {
+    } catch (_e) {
       return defaultState;
     }
   });

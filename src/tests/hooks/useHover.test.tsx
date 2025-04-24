@@ -1,5 +1,5 @@
 import React, { ReactElement } from "react";
-import { render, act, screen, fireEvent } from "@testing-library/react";
+import { render, act as _act, screen, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import useHover from "../../hooks/useHover";
 
@@ -116,7 +116,7 @@ describe("useHover", () => {
   test("should handle null ref initially", () => {
     // This component keeps the ref as null
     function NullRefComponent(): ReactElement {
-      const [hoverRef, isHovered] = useHover();
+      const [_hoverRef, isHovered] = useHover();
 
       // Never assign the ref
       return (

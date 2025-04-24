@@ -5,9 +5,9 @@
  * @returns {any} - The parsed value or fallback
  */
 export const safeJSONParse = (value, fallback = null) => {
-	try {
-		return JSON.parse(value);
-	} catch (error) {
-		return fallback;
-	}
+  try {
+    return JSON.parse(value);
+  } catch (_error) {
+    return fallback;
+  }
 };
