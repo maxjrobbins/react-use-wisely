@@ -4,3 +4,5 @@ coverage
 .DS_Store
 *.log
 .rollup.cache
+
+*storybook.log
