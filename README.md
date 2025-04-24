@@ -350,6 +350,44 @@ All hooks are designed to work with server-side rendering. They check for browse
 
 Full TypeScript definitions are included.
 
+## Documentation
+
+### Storybook
+
+This project uses Storybook to showcase and document all the hooks in an interactive environment.
+
+You can view the live Storybook documentation at: https://[YOUR-GITHUB-USERNAME].github.io/react-use-wisely/
+
+To run Storybook locally:
+
+```bash
+# Navigate to the docs directory
+cd docs
+
+# Install dependencies
+npm install
+
+# Start Storybook
+npm run storybook
+```
+
+To build Storybook:
+
+```bash
+cd docs
+npm run build-storybook
+```
+
+### Contributing
+
+Contributions are welcome! Please feel free to submit a Pull Request.
+
+1. Fork the repository
+2. Create your feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add some amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
 ## License
 
 MIT

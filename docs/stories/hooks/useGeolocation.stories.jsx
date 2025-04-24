@@ -18,9 +18,11 @@ export const Default = () => {
   const {
     isLoading,
     error,
-    data: { latitude, longitude, accuracy, timestamp },
+    data = { latitude: null, longitude: null, accuracy: null, timestamp: null },
     getCurrentPosition,
   } = useGeolocation();
+
+  const { latitude, longitude, accuracy, timestamp } = data;
 
   return (
     <div
