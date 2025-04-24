@@ -144,7 +144,7 @@ describe("useIntersectionObserver", () => {
 
   test("should handle null ref", () => {
     const NullRefComponent: FC = () => {
-      // eslint-disable-next-line no-unused-vars
+       
       const [ref, isIntersecting] = useIntersectionObserver<HTMLDivElement>();
 
       // Don't use the ref

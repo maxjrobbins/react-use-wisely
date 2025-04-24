@@ -1,0 +1,6 @@
+node_modules/
+dist/
+coverage/
+.rollup.cache/
+**/*.js.map
+**/*.d.ts 
