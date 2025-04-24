@@ -1,5 +1,8 @@
 # React-Use-Wisely
 
+[![CI](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml)
+[![Storybook](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml)
+
 A comprehensive collection of custom React hooks for common development tasks.
 
 ## Installation
