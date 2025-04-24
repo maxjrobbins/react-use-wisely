@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import useIdle from "../../../src/hooks/useIdle";
 
 export default {
@@ -19,8 +19,11 @@ export const Default = () => {
   const isIdle = useIdle(idleTime);
   const [lastActivity, setLastActivity] = useState(new Date());
   const [idleEvents, setIdleEvents] = useState([]);
+  const previousIdleState = useRef(isIdle);
+  const lastTransitionTime = useRef(Date.now());
+  const transitionCooldown = 1000; // Minimum time between logging transitions (ms)
 
-  React.useEffect(() => {
+  useEffect(() => {
     const handleActivity = () => {
       setLastActivity(new Date());
     };
@@ -39,15 +42,42 @@ export const Default = () => {
     };
   }, []);
 
-  // Log idle state changes
-  React.useEffect(() => {
-    setIdleEvents((prev) => [
-      {
-        timestamp: new Date().toLocaleTimeString(),
-        state: isIdle ? "Became Idle" : "Became Active",
-      },
-      ...prev.slice(0, 4), // Keep only the 5 most recent events
-    ]);
+  // Log idle state changes with debouncing to prevent duplicate close timestamps
+  useEffect(() => {
+    const now = Date.now();
+
+    if (
+      isIdle !== previousIdleState.current &&
+      now - lastTransitionTime.current > transitionCooldown
+    ) {
+      const timestamp = new Date();
+      setIdleEvents((prev) => {
+        // Check if the last entry had the same state - if so, don't add duplicate
+        if (
+          prev.length > 0 &&
+          prev[0].state === (isIdle ? "Became Idle" : "Became Active")
+        ) {
+          return prev;
+        }
+
+        return [
+          {
+            id: now, // Use timestamp as ID to ensure uniqueness
+            timestamp: timestamp.toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+              second: "2-digit",
+              fractionalSecondDigits: 3,
+            }),
+            state: isIdle ? "Became Idle" : "Became Active",
+          },
+          ...prev.slice(0, 4), // Keep only the 5 most recent events
+        ];
+      });
+
+      lastTransitionTime.current = now;
+      previousIdleState.current = isIdle;
+    }
   }, [isIdle]);
 
   return (
@@ -176,7 +206,7 @@ export const Default = () => {
             >
               {idleEvents.map((event, index) => (
                 <li
-                  key={index}
+                  key={event.id || index}
                   style={{
                     padding: "8px 12px",
                     borderBottom:

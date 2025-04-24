@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React from "react";
 import useIntersectionObserver from "../../../src/hooks/useIntersectionObserver";
 
 export default {
@@ -16,13 +16,7 @@ export default {
 };
 
 export const Default = () => {
-  const [isVisible, setIsVisible] = useState(false);
-  const ref = useRef(null);
-
-  useIntersectionObserver(ref, {
-    onIntersect: (entry) => {
-      setIsVisible(entry.isIntersecting);
-    },
+  const [ref, isVisible] = useIntersectionObserver({
     threshold: 0.5,
   });
 

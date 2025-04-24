@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState } from "react";
 import useReducerWithMiddleware from "../../../src/hooks/useReducerWithMiddleware";
 
 // Defining as a separate variable to ensure Storybook properly recognizes it
@@ -10,7 +10,7 @@ const meta = {
     docs: {
       description: {
         component:
-          "This hook adds middleware capabilities to React's useReducer, allowing you to intercept and transform actions or state before and after the reducer runs.",
+          "This hook adds middleware capabilities to React's useReducer, allowing you to intercept actions before they reach the reducer.",
       },
     },
   },
@@ -62,16 +62,16 @@ const reducer = (state, action) => {
 };
 
 // Define middleware
-const loggingMiddleware =
-  ({ getState }) =>
-  (next) =>
-  (action) => {
-    console.log("Action:", action);
-    console.log("State before:", getState());
-    const result = next(action);
-    console.log("State after:", getState());
-    return result;
-  };
+const loggingMiddleware = (state, action, next) => {
+  console.log("Action:", JSON.stringify(action, null, 2));
+  console.log("State before:", JSON.stringify(state, null, 2));
+
+  // Call the next function to continue the chain
+  next(action);
+
+  // Note: We can't log the state after because the middleware
+  // doesn't receive the updated state in this implementation
+};
 
 const analyticsMiddleware = () => (next) => (action) => {
   // Simulate sending analytics data
@@ -82,10 +82,28 @@ const analyticsMiddleware = () => (next) => (action) => {
 };
 
 export const Default = () => {
-  const [state, dispatch, { getState }] = useReducerWithMiddleware(
+  // Log to show console output for debugging
+  const [logMessages, setLogMessages] = useState([]);
+
+  // Override console.log to capture middleware logs
+  const originalConsoleLog = console.log;
+  console.log = (...args) => {
+    originalConsoleLog(...args);
+
+    // Format objects properly
+    const formattedArgs = args.map((arg) =>
+      typeof arg === "object" && arg !== null
+        ? JSON.stringify(arg, null, 2)
+        : String(arg)
+    );
+
+    setLogMessages((prev) => [...prev, formattedArgs.join(" ")].slice(-5));
+  };
+
+  const [state, dispatch] = useReducerWithMiddleware(
     reducer,
     initialState,
-    [loggingMiddleware, analyticsMiddleware]
+    loggingMiddleware
   );
 
   return (
@@ -171,6 +189,7 @@ export const Default = () => {
           backgroundColor: "#f5f5f5",
           padding: "20px",
           borderRadius: "4px",
+          marginBottom: "20px",
         }}
       >
         <h4 style={{ margin: "0 0 10px 0" }}>Action History:</h4>
@@ -250,6 +269,53 @@ export const Default = () => {
 
       <div
         style={{
+          backgroundColor: "#f5f5f5",
+          padding: "20px",
+          borderRadius: "4px",
+          marginBottom: "20px",
+        }}
+      >
+        <h4 style={{ margin: "0 0 10px 0" }}>Middleware Console Output:</h4>
+        {logMessages.length > 0 ? (
+          <div
+            style={{
+              backgroundColor: "#272822",
+              color: "#f8f8f2",
+              padding: "15px",
+              borderRadius: "4px",
+              fontFamily: "monospace",
+              maxHeight: "200px",
+              overflowY: "auto",
+              whiteSpace: "pre-wrap",
+              fontSize: "13px",
+              lineHeight: "1.4",
+            }}
+          >
+            {logMessages.map((msg, index) => (
+              <div key={index} style={{ margin: "8px 0" }}>
+                {msg}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div
+            style={{
+              padding: "20px",
+              backgroundColor: "white",
+              borderRadius: "4px",
+              textAlign: "center",
+              color: "#666",
+              fontStyle: "italic",
+              border: "1px solid #ddd",
+            }}
+          >
+            No console output yet. Try dispatching an action.
+          </div>
+        )}
+      </div>
+
+      <div
+        style={{
           marginTop: "20px",
           backgroundColor: "#e3f2fd",
           padding: "15px",
@@ -258,8 +324,7 @@ export const Default = () => {
       >
         <h4 style={{ margin: "0 0 10px 0" }}>How It Works:</h4>
         <p style={{ margin: "0 0 10px 0" }}>
-          This hook adds middleware support to React's <code>useReducer</code>,
-          similar to Redux middleware:
+          This hook adds middleware support to React's <code>useReducer</code>:
         </p>
         <ul style={{ margin: "0", paddingLeft: "20px" }}>
           <li>
@@ -267,13 +332,10 @@ export const Default = () => {
             reducer
           </li>
           <li>
-            Each middleware has access to <code>getState</code> and{" "}
-            <code>dispatch</code>
+            The middleware receives the current state, the action, and a next
+            function
           </li>
-          <li>
-            Middleware can transform actions or dispatch additional actions
-          </li>
-          <li>Open the console to see the logging middleware in action</li>
+          <li>Middleware must call next(action) to continue processing</li>
         </ul>
       </div>
     </div>

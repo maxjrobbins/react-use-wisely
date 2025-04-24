@@ -22,10 +22,9 @@ export default meta;
 export const Default = () => {
   const [inputValue, setInputValue] = useState("");
   const [checkValue, setCheckValue] = useState("");
-  const [checkResult, setCheckResult] = useState(null);
 
   // Initialize with some default values
-  const { add, remove, has, clear, toggle, reset, values, size } = useSet([
+  const [set, { add, remove, has, clear, toggle }] = useSet([
     "apple",
     "banana",
     "orange",
@@ -42,12 +41,8 @@ export const Default = () => {
   const handleCheck = (e) => {
     e.preventDefault();
     if (checkValue.trim()) {
-      setCheckResult(has(checkValue.trim()));
+      // The has function is already provided by the hook
     }
-  };
-
-  const handleToggle = (item) => {
-    toggle(item);
   };
 
   return (
@@ -155,7 +150,7 @@ export const Default = () => {
       </div>
 
       <div>
-        <h4>Current Set ({size} items):</h4>
+        <h4>Current Set ({set.size} items):</h4>
         <div
           style={{
             backgroundColor: "#f5f5f5",
@@ -164,7 +159,7 @@ export const Default = () => {
             minHeight: "100px",
           }}
         >
-          {size > 0 ? (
+          {set.size > 0 ? (
             <ul
               style={{
                 listStyle: "none",
@@ -175,7 +170,7 @@ export const Default = () => {
                 gap: "10px",
               }}
             >
-              {[...values].map((item) => (
+              {[...set].map((item) => (
                 <li
                   key={item}
                   style={{
@@ -250,6 +245,10 @@ export const Default = () => {
           </li>
           <li>
             <code>has(item)</code> - Checks if an item exists in the set
+          </li>
+          <li>
+            <code>toggle(item)</code> - Adds item if not present, removes if
+            present
           </li>
         </ul>
       </div>

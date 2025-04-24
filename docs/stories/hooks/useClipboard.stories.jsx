@@ -8,7 +8,7 @@ export default {
     docs: {
       description: {
         component:
-          "A React hook that provides utilities for copying text to and reading text from the clipboard.",
+          "A React hook that provides utilities for copying text to the clipboard.",
       },
     },
   },
@@ -16,8 +16,7 @@ export default {
 
 export const Default = () => {
   const [textToCopy, setTextToCopy] = useState("Hello, clipboard!");
-  const { copied, copyToClipboard, clipboardContents, getClipboardContents } =
-    useClipboard();
+  const [isCopied, copyToClipboard] = useClipboard();
 
   return (
     <div
@@ -56,7 +55,7 @@ export const Default = () => {
           </button>
         </div>
 
-        {copied && (
+        {isCopied && (
           <div
             style={{
               padding: "8px",
@@ -81,48 +80,9 @@ export const Default = () => {
         )}
       </div>
 
-      <div>
-        <h4>Read from Clipboard</h4>
-        <div style={{ marginBottom: "10px" }}>
-          <button
-            onClick={getClipboardContents}
-            style={{
-              padding: "8px 16px",
-              backgroundColor: "#2196F3",
-              color: "white",
-              border: "none",
-              borderRadius: "4px",
-              cursor: "pointer",
-            }}
-          >
-            Read Clipboard
-          </button>
-        </div>
-
-        {clipboardContents && (
-          <div style={{ marginTop: "10px" }}>
-            <p>
-              <strong>Clipboard contents:</strong>
-            </p>
-            <pre
-              style={{
-                padding: "10px",
-                backgroundColor: "#f5f5f5",
-                borderRadius: "4px",
-                maxHeight: "100px",
-                overflow: "auto",
-                wordBreak: "break-word",
-              }}
-            >
-              {clipboardContents}
-            </pre>
-          </div>
-        )}
-      </div>
-
       <p style={{ marginTop: "30px", fontStyle: "italic", color: "#666" }}>
-        Note: Reading from clipboard may require user permission in some
-        browsers. Try copying some text first, then click "Read Clipboard".
+        Note: The useClipboard hook will automatically reset the copied state
+        after 2 seconds (default timeout).
       </p>
     </div>
   );

@@ -356,7 +356,7 @@ Full TypeScript definitions are included.
 
 This project uses Storybook to showcase and document all the hooks in an interactive environment.
 
-You can view the live Storybook documentation at: https://[YOUR-GITHUB-USERNAME].github.io/react-use-wisely/
+You can view the live Storybook documentation at: https://maxjrobbins.github.io/react-use-wisely/
 
 To run Storybook locally:
 

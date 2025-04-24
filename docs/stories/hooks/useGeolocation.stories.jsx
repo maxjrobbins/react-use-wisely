@@ -15,14 +15,8 @@ export default {
 };
 
 export const Default = () => {
-  const {
-    isLoading,
-    error,
-    data = { latitude: null, longitude: null, accuracy: null, timestamp: null },
-    getCurrentPosition,
-  } = useGeolocation();
-
-  const { latitude, longitude, accuracy, timestamp } = data;
+  const { loading, error, latitude, longitude, accuracy, timestamp } =
+    useGeolocation();
 
   return (
     <div
@@ -32,18 +26,17 @@ export const Default = () => {
 
       <div style={{ marginBottom: "20px" }}>
         <button
-          onClick={getCurrentPosition}
-          disabled={isLoading}
+          disabled={loading}
           style={{
             padding: "8px 12px",
-            backgroundColor: isLoading ? "#cccccc" : "#4CAF50",
+            backgroundColor: loading ? "#cccccc" : "#4CAF50",
             color: "white",
             border: "none",
             borderRadius: "4px",
-            cursor: isLoading ? "not-allowed" : "pointer",
+            cursor: loading ? "not-allowed" : "pointer",
           }}
         >
-          {isLoading ? "Getting location..." : "Get Current Location"}
+          {loading ? "Getting location..." : "Geolocation Status"}
         </button>
       </div>
 
@@ -145,8 +138,8 @@ export const Default = () => {
         </div>
       ) : (
         <p>
-          No location data available. Click the button to get your current
-          location.
+          No location data available. Allow location access in your browser for
+          this demo to work.
         </p>
       )}
 

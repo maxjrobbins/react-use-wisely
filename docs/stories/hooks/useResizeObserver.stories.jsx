@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useState } from "react";
 import useResizeObserver from "../../../src/hooks/useResizeObserver";
 
 export default {
@@ -15,9 +15,9 @@ export default {
 };
 
 export const Default = () => {
-  const ref = useRef(null);
-  const { width, height } = useResizeObserver(ref);
   const [containerWidth, setContainerWidth] = useState(400);
+  const [ref, dimensions] = useResizeObserver();
+  const { width, height } = dimensions;
 
   return (
     <div
