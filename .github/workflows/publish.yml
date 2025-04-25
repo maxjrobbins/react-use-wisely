@@ -36,6 +36,9 @@ jobs:
         run: |
           # Temporarily change package name for GitHub Packages
           json -I -f package.json -e "this.name='@maxjrobbins/react-use-wisely'"
+          # Create .npmrc file for GitHub Packages
+          echo "registry=https://npm.pkg.github.com/" > .npmrc
+          echo "@maxjrobbins:registry=https://npm.pkg.github.com/" >> .npmrc
 
       - name: Publish to GitHub Packages
         run: npm publish
