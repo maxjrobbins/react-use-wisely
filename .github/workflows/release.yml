@@ -1,0 +1,63 @@
+name: Release and Publish
+
+on:
+  push:
+    tags:
+      - "v*" # Run when a tag is pushed that starts with 'v'
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: "18.x"
+          registry-url: "https://registry.npmjs.org/"
+
+      - name: Install dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build package
+        run: npm run build
+
+      - name: Check if version exists
+        id: version_check
+        run: |
+          PKG_VERSION=$(node -p "require('./package.json').version")
+          echo "Package version: $PKG_VERSION"
+
+          # Check if this version already exists on npm
+          if npm view react-use-wisely@$PKG_VERSION version &>/dev/null; then
+            echo "This version already exists on npm. Skipping publish."
+            echo "skip_publish=true" >> $GITHUB_OUTPUT
+          else
+            echo "Version is new. Will publish."
+            echo "skip_publish=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+
+      - name: Publish to npm
+        if: steps.version_check.outputs.skip_publish == 'false'
+        run: npm publish
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
