@@ -2,15 +2,30 @@
 
 [![CI](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml)
 [![Storybook](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml)
+[![GitHub Package Version](https://img.shields.io/github/package-json/v/maxjrobbins/react-use-wisely)](https://github.com/maxjrobbins/react-use-wisely/packages)
+[![npm version](https://img.shields.io/npm/v/react-use-wisely.svg)](https://www.npmjs.com/package/react-use-wisely)
 
 A comprehensive collection of custom React hooks for common development tasks.
 
 ## Installation
 
 ```bash
+# From npm registry
 npm install react-use-wisely
 # or
 yarn add react-use-wisely
+```
+
+### Installing from GitHub Packages
+
+```bash
+# Configure npm to use GitHub Packages
+echo "@maxjrobbins:registry=https://npm.pkg.github.com" >> .npmrc
+
+# Install the package
+npm install @maxjrobbins/react-use-wisely
+# or
+yarn add @maxjrobbins/react-use-wisely
 ```
 
 ## Available Hooks

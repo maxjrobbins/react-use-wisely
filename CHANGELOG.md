@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.1.2] - 2025-04-25
+
+### Added
+
+- GitHub Packages support
+- Package status badges in README (npm and GitHub Packages)
+- GitHub workflow for automated package publishing
+- Enhanced repository metadata
+
+### Changed
+
+- Updated documentation with installation instructions for GitHub Packages
+- Added homepage and bugs fields to package.json
+
 ## [1.1.0] - 2025-04-24
 
 ### Added

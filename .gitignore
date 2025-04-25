@@ -6,3 +6,5 @@ coverage
 .rollup.cache
 
 *storybook.log
+
+.npmrc

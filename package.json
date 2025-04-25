@@ -1,6 +1,6 @@
 {
-  "name": "react-use-wisely",
-  "version": "1.1.1",
+  "name": "@mrobbins18/react-use-wisely",
+  "version": "1.1.2",
   "description": "A collection of utility hooks for React applications.",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
@@ -90,5 +90,16 @@
     "ts-jest": "^29.3.2",
     "tslib": "^2.6.2",
     "typescript": "^5.4.5"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/mrobbins18/react-use-wisely.git"
+  },
+  "homepage": "https://github.com/mrobbins18/react-use-wisely#readme",
+  "bugs": {
+    "url": "https://github.com/mrobbins18/react-use-wisely/issues"
   }
 }

@@ -1,9 +1,6 @@
 import React, { FC } from "react";
 import { render, renderHook, act } from "@testing-library/react";
-import useResizeObserver, {
-  ResizeObserverError,
-  ResizeObserverNotSupportedError,
-} from "../../hooks/useResizeObserver";
+import useResizeObserver from "../../hooks/useResizeObserver";
 
 // Mock for ResizeObserver
 interface MockResizeObserverInstance {
