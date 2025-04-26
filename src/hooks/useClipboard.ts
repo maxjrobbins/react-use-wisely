@@ -44,6 +44,16 @@ const useClipboard = (
 
       if (!navigator.clipboard) {
         // Fallback for older browsers
+        // First check if document.body exists
+        if (!document || !document.body) {
+          const clipboardError = new ClipboardError(
+            "Failed to copy text using fallback method: document.body is not available"
+          );
+          console.error(clipboardError);
+          setState({ isCopied: false, error: clipboardError });
+          return false;
+        }
+
         const textArea = document.createElement("textarea");
         textArea.value = text;
 
@@ -53,10 +63,27 @@ const useClipboard = (
         textArea.style.top = "-999999px";
         document.body.appendChild(textArea);
 
-        textArea.focus();
-        textArea.select();
-
         try {
+          textArea.focus();
+
+          // This ensures better compatibility across browsers
+          try {
+            const range = document.createRange();
+            range.selectNodeContents(textArea);
+            const selection = window.getSelection();
+            if (selection) {
+              selection.removeAllRanges();
+              selection.addRange(range);
+              textArea.setSelectionRange(0, textArea.value.length); // For mobile devices
+            } else {
+              // Fallback to the simpler approach
+              textArea.select();
+            }
+          } catch (selectionError) {
+            // Fallback to simple selection if the robust approach fails
+            textArea.select();
+          }
+
           // @ts-ignore: document.execCommand is deprecated but used for backward compatibility
           const successful = document.execCommand("copy");
           if (!successful) {

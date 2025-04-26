@@ -19,7 +19,7 @@ export interface GeolocationState {
 /**
  * Get human-readable error message from GeolocationPositionError
  */
-const getGeolocationErrorMessage = (
+export const getGeolocationErrorMessage = (
   error: GeolocationPositionError
 ): string => {
   switch (error.code) {
@@ -57,6 +57,8 @@ const useGeolocation = (
     error: null,
   });
 
+  const [retryCount, setRetryCount] = useState(0);
+
   // Function to retry getting location after error
   const retry = useCallback(() => {
     setState((prev) => ({
@@ -64,9 +66,12 @@ const useGeolocation = (
       loading: true,
       error: null,
     }));
+    // Increment retry count to trigger useEffect
+    setRetryCount((count) => count + 1);
   }, []);
 
   useEffect(() => {
+    // Early return if geolocation is not supported
     if (!navigator.geolocation) {
       setState((prevState) => ({
         ...prevState,
@@ -143,7 +148,7 @@ const useGeolocation = (
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [options, state.loading]); // Re-run when retry is called
+  }, [options, retryCount]); // Use retryCount state variable instead of ref.current
 
   return {
     ...state,

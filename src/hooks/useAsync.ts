@@ -11,12 +11,24 @@ import { AsyncError } from "./errors";
  * @param {number} retryDelay - Delay between retries in ms (default: 1000)
  * @returns {Object} - Status and control functions for the async operation
  */
+
+interface AsyncHookResult<T, P extends unknown[]> {
+  execute: (...params: P) => Promise<T>;
+  reset: () => void;
+  status: "idle" | "pending" | "success" | "error" | "retrying";
+  value: T | null;
+  error: AsyncError | null;
+  isLoading: boolean;
+  isRetrying: boolean;
+  attemptCount: number;
+}
+
 const useAsync = <T, P extends unknown[] = unknown[]>(
   asyncFunction: (...params: P) => Promise<T>,
-  immediate = false,
-  retryCount = 0,
-  retryDelay = 1000
-) => {
+  immediate: boolean = false,
+  retryCount: number = 0,
+  retryDelay: number = 1000
+): AsyncHookResult<T, P> => {
   type StatusType = "idle" | "pending" | "success" | "error" | "retrying";
 
   const [status, setStatus] = useState<StatusType>("idle");
@@ -33,8 +45,10 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
       setError(null);
       setAttemptCount(0);
 
+      let currentAttempt = 0;
+
       // Create a retry function
-      const executeWithRetry = async (attempt: number): Promise<T> => {
+      const executeWithRetry = async (): Promise<T> => {
         try {
           const response = await asyncFunction(...params);
           setValue(response);
@@ -44,18 +58,21 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
           const asyncError = new AsyncError(
             error instanceof Error ? error.message : "Unknown async error",
             error,
-            { params: JSON.stringify(params), attempt }
+            { params: JSON.stringify(params), attempt: currentAttempt }
           );
 
           // Check if we should retry
-          if (attempt < retryCount) {
+          if (currentAttempt < retryCount) {
+            currentAttempt++;
             setStatus("retrying");
             setError(asyncError);
-            setAttemptCount(attempt + 1);
+            setAttemptCount(currentAttempt);
 
-            // Wait before retry
-            await new Promise((resolve) => setTimeout(resolve, retryDelay));
-            return executeWithRetry(attempt + 1);
+            return new Promise<T>((resolve, reject) => {
+              setTimeout(() => {
+                executeWithRetry().then(resolve).catch(reject);
+              }, retryDelay);
+            });
           }
 
           // No more retries, set final error
@@ -65,7 +82,7 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
         }
       };
 
-      return executeWithRetry(0);
+      return executeWithRetry();
     },
     [asyncFunction, retryCount, retryDelay]
   );

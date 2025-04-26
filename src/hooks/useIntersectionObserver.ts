@@ -13,24 +13,40 @@ const useIntersectionObserver = <T extends HTMLElement = HTMLElement>(
   const [isIntersecting, setIsIntersecting] = useState<boolean>(false);
   const [error, setError] = useState<IntersectionObserverError | null>(null);
   const ref = useRef<T | null>(null);
+  // Use a ref to track if we've already detected browser support issue
+  const hasCheckedSupport = useRef<boolean>(false);
 
   useEffect(() => {
     const currentRef = ref.current;
     if (!currentRef) return;
 
-    // Reset error state
-    setError(null);
+    // Reset error state only if we haven't already detected a support issue
+    if (!hasCheckedSupport.current) {
+      setError(null);
+    }
 
     // Check if IntersectionObserver is supported
     if (!("IntersectionObserver" in window)) {
+      // If we've already handled this error, just return to prevent loops
+      if (hasCheckedSupport.current) {
+        return () => {};
+      }
+
+      hasCheckedSupport.current = true;
       const browserError = new IntersectionObserverError(
         "IntersectionObserver is not supported in this browser",
         null,
         { options }
       );
       console.error(browserError);
+
+      // Important: Set a fallback value for isIntersecting
+      // Default to false to assume the element is not visible when we can't detect
+      setIsIntersecting(false);
       setError(browserError);
-      return;
+
+      // Need to return a cleanup function even when there's no IntersectionObserver
+      return () => {};
     }
 
     let observer: IntersectionObserver;
@@ -51,7 +67,11 @@ const useIntersectionObserver = <T extends HTMLElement = HTMLElement>(
         }
       );
       console.error(observerError);
+
+      // Similar to above, set a fallback value for isIntersecting
+      setIsIntersecting(false);
       setError(observerError);
+
       return () => {};
     }
 
@@ -68,7 +88,7 @@ const useIntersectionObserver = <T extends HTMLElement = HTMLElement>(
         );
       }
     };
-  }, [options]); // Removed ref.current from dependencies
+  }, [options]);
 
   return [ref, isIntersecting, error];
 };
