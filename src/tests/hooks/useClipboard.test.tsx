@@ -164,7 +164,6 @@ describe("useClipboard", () => {
       fireEvent.click(screen.getByTestId("copy-button"));
     });
 
-    // Should have an error now instead of just logging
     expect(screen.getByTestId("error")).toBeInTheDocument();
     expect(screen.getByTestId("error").textContent).toContain(
       "Failed to copy text using fallback method"
@@ -199,7 +198,6 @@ describe("useClipboard", () => {
       fireEvent.click(screen.getByTestId("copy-button"));
     });
 
-    // Should have an error now
     expect(screen.getByTestId("error")).toBeInTheDocument();
     expect(screen.getByTestId("error").textContent).toContain(
       "Failed to copy text using fallback method"
@@ -227,7 +225,6 @@ describe("useClipboard", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    // Use renderHook directly instead of rendering a component
     const { result } = renderHook(() => useClipboard());
 
     // Temporarily set document.body to undefined just before our copy call
@@ -276,7 +273,6 @@ describe("useClipboard", () => {
       fireEvent.click(screen.getByTestId("copy-button"));
     });
 
-    // Should have an error now
     expect(screen.getByTestId("error")).toBeInTheDocument();
     expect(screen.getByTestId("error").textContent).toContain(
       "Failed to copy text to clipboard"

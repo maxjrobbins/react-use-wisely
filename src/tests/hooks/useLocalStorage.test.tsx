@@ -1,8 +1,6 @@
 import React from "react";
-import { render, screen, act, fireEvent } from "@testing-library/react";
-import { renderHook } from "@testing-library/react-hooks";
+import { render, screen, act } from "@testing-library/react";
 import useLocalStorage from "../../hooks/useLocalStorage";
-import { LocalStorageError } from "../../hooks/errors";
 
 // Custom QuotaExceededError class to simulate storage limit errors
 class QuotaExceededError extends Error {
@@ -311,8 +309,4 @@ describe("useLocalStorage", () => {
     // Value should not change
     expect(screen.getByTestId("value").textContent).toBe("initial value");
   });
-
-  // Test removed as it's causing test issues with window undefined
-  // This functionality is better tested with a unit test directly on
-  // the hook implementation's server-side behavior
 });

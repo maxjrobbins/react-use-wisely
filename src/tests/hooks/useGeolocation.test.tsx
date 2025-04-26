@@ -1,7 +1,7 @@
 import React, { ReactElement } from "react";
 import { render, screen, act, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
-import useGeolocation, { GeolocationState } from "../../hooks/useGeolocation";
+import useGeolocation from "../../hooks/useGeolocation";
 
 interface TestComponentProps {
   options?: PositionOptions;

@@ -148,7 +148,7 @@ const useGeolocation = (
         navigator.geolocation.clearWatch(watchId);
       }
     };
-  }, [options, retryCount]); // Use retryCount state variable instead of ref.current
+  }, [options, retryCount]);
 
   return {
     ...state,

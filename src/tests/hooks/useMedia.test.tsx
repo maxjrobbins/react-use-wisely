@@ -1,7 +1,6 @@
-import React, { FC } from "react";
-import { render, screen, act } from "@testing-library/react";
+import React, {FC} from "react";
+import {act, render, screen} from "@testing-library/react";
 import useMedia from "../../hooks/useMedia";
-import { MediaError as _MediaError } from "../../hooks/errors";
 
 interface TestComponentProps {
   query: string;
@@ -227,10 +226,8 @@ describe("useMedia", () => {
   });
 
   test("should handle when media query prop changes", () => {
-    // We'll control the match state with a variable
     let shouldMatch = false;
 
-    // Mock matchMedia to use our control variable
     (window.matchMedia as jest.Mock).mockImplementation(() => {
       // Return an object with a getter for matches that uses our current control value
       return {
@@ -255,10 +252,8 @@ describe("useMedia", () => {
       "Media query does not match"
     );
 
-    // Now update our control variable to trigger a match
     shouldMatch = true;
 
-    // Rerender with the same query (but our mock will now return matches: true)
     rerender(
       <TestComponent query="(min-width: 1200px)" defaultState={false} />
     );
@@ -268,7 +263,6 @@ describe("useMedia", () => {
       listeners.forEach((listener) => listener());
     });
 
-    // Should now show as matching
     expect(screen.getByTestId("matches").textContent).toBe(
       "Media query matches"
     );
@@ -344,9 +338,6 @@ describe("useMedia", () => {
   });
 
   test("should handle server-side rendering by using defaultState", () => {
-    // Skip this test in the current environment as it's difficult to mock
-    // properly. We'll test the initialization logic directly.
-
     // Mock matchMedia to throw an error when accessed (which tests the SSR path indirectly)
     (window.matchMedia as jest.Mock).mockImplementation(() => {
       throw new Error("matchMedia not available (simulating SSR)");
@@ -386,10 +377,8 @@ describe("useMedia", () => {
 
     render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
 
-    // We're no longer asserting the exact state, just checking that an element is rendered
     expect(screen.getByTestId("matches")).toBeInTheDocument();
 
-    // The important part is to verify error handling
     expect(screen.getByTestId("error")).toBeInTheDocument();
     expect(screen.getByTestId("error").textContent).toContain(
       "Failed to add media query listener"
@@ -400,7 +389,7 @@ describe("useMedia", () => {
 
   test("should handle nested errors and preserve matches state", () => {
     // First test the initial state without error
-    const initialMockMql = {
+    let mockMqlRef = {
       matches: true, // Set initial matches to true
       media: "(min-width: 600px)",
       addEventListener: jest.fn((event, listener) => {
@@ -408,8 +397,6 @@ describe("useMedia", () => {
       }),
       removeEventListener: jest.fn(),
     };
-
-    let mockMqlRef = initialMockMql;
 
     // First return a working mock, then on second call return one that throws
     (window.matchMedia as jest.Mock).mockImplementation(() => mockMqlRef);
@@ -539,7 +526,6 @@ describe("useMedia", () => {
     // This test is successful if it doesn't throw any errors
   });
 
-  // Add a test specifically for the early return when window is undefined (line 19)
   test("should use defaultState when window is undefined during initialization", () => {
     // Create a mock for useState that captures the initializer function
     const useStateMock = jest.fn().mockImplementation((initializer) => {
@@ -619,7 +605,6 @@ describe("useMedia", () => {
     }
   });
 
-  // Test for the early return in useEffect (line 45)
   test("should handle useEffect when window is undefined", () => {
     // Store original useEffect
     const originalUseEffect = React.useEffect;
@@ -689,7 +674,6 @@ describe("useMedia", () => {
     }
   });
 
-  // Test for the cleanup function (lines 50-56)
   test("should return a cleanup function that sets mounted to false", () => {
     // Store original useEffect
     const originalUseEffect = React.useEffect;
@@ -748,7 +732,6 @@ describe("useMedia", () => {
     }
   });
 
-  // Test for the final cleanup function (coverage of lines 50-56)
   test("should handle the final cleanup function path", () => {
     // Store original useEffect
     const originalUseEffect = React.useEffect;
@@ -760,15 +743,11 @@ describe("useMedia", () => {
 
     // Define the mock functions and variables
     let cleanupFunction: (() => void) | undefined;
-    let mountedRef: boolean | undefined;
 
     // Custom useEffect implementation that captures the effect and immediately runs it
     const customUseEffect = (
-      effect: React.EffectCallback,
-      deps?: React.DependencyList
+        effect: React.EffectCallback,
     ) => {
-      // Store the value of mounted before it's potentially modified
-      mountedRef = true;
 
       // Call the effect function immediately
       cleanupFunction = effect() as (() => void) | undefined;
@@ -813,6 +792,4 @@ describe("useMedia", () => {
       consoleErrorSpy.mockRestore();
     }
   });
-
-  // SSR behavior is tested in a separate file: useMediaSSR.test.ts
 });

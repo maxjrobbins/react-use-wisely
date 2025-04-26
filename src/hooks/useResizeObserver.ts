@@ -24,7 +24,16 @@ const useResizeObserver = <T extends HTMLElement = HTMLElement>(): [
   DimensionsObject,
   ResizeObserverError | null
 ] => {
-  const [dimensions, setDimensions] = useState<DimensionsObject>({});
+  const [dimensions, setDimensions] = useState<DimensionsObject>({
+    bottom: 0,
+    height: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0
+  });
   const [error, setError] = useState<ResizeObserverError | null>(null);
   const ref = useRef<T | null>(null);
 

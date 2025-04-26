@@ -14,7 +14,10 @@ function useThrottle<T>(value: T, limit: number = 500): T {
 
   useEffect(() => {
     const handler = setTimeout(() => {
-      if (Date.now() - lastRan.current >= limit) {
+      const elapsed = Date.now() - lastRan.current;
+      const shouldUpdate = elapsed >= limit;
+
+      if (shouldUpdate) {
         setThrottledValue(value);
         lastRan.current = Date.now();
       }
