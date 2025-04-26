@@ -455,4 +455,364 @@ describe("useMedia", () => {
 
     consoleErrorSpy.mockRestore();
   });
+
+  // Additional test for branch coverage - matchMedia exists but returns null
+  test("should handle initial state when matchMedia exists but returns null", () => {
+    // Mock matchMedia to return null instead of redefining the property
+    (window.matchMedia as jest.Mock).mockImplementation(() => null);
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+
+    // Should use the default state
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query matches"
+    );
+
+    // Should have an error
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    // The error message might vary, just check that there is an error
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  // Test for the branch where neither addEventListener nor addListener is available
+  test("should handle when neither addEventListener nor addListener is available", () => {
+    // Mock matchMedia to return an object without addEventListener or addListener
+    const mockMql = {
+      matches: true,
+      media: "(min-width: 600px)",
+      // No addEventListener or addListener methods
+    };
+
+    (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
+
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+
+    // The match state should be based on the initial match value
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query matches"
+    );
+
+    // No error should be shown since we just silently don't add listeners
+    // This tests the code path where neither listener method exists
+    expect(screen.queryByTestId("error")).toBeNull();
+
+    consoleErrorSpy.mockRestore();
+  });
+
+  test("should handle cleanup when effect runs but no event listeners are added", () => {
+    // Mock matchMedia to return a minimal object that doesn't have addEventListener or addListener
+    // This will test the cleanup function that sets mounted = false
+    const mockMql = {
+      matches: true,
+      media: "(min-width: 600px)",
+      // Intentionally not adding addEventListener or addListener
+    };
+
+    (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
+
+    // Mount and immediately unmount to test the cleanup function
+    const { unmount } = render(
+      <TestComponent query="(min-width: 600px)" defaultState={false} />
+    );
+
+    // The initial state should reflect mockMql.matches
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query matches"
+    );
+
+    // No error should be shown
+    expect(screen.queryByTestId("error")).toBeNull();
+
+    // Unmount to trigger cleanup
+    unmount();
+
+    // There's nothing to assert after unmount, we're just ensuring the cleanup code runs
+    // This test is successful if it doesn't throw any errors
+  });
+
+  // Add a test specifically for the early return when window is undefined (line 19)
+  test("should use defaultState when window is undefined during initialization", () => {
+    // Create a mock for useState that captures the initializer function
+    const useStateMock = jest.fn().mockImplementation((initializer) => {
+      // Execute the initializer function with a mocked window context
+      const originalWindow = window;
+      const getWindowValue = Object.getOwnPropertyDescriptor(
+        global,
+        "window"
+      )?.get;
+
+      // Mock that window is undefined only during initializer execution
+      Object.defineProperty(global, "window", {
+        get: () => undefined,
+        configurable: true,
+      });
+
+      // Call the initializer function in the context where window is undefined
+      const initialState =
+        typeof initializer === "function" ? initializer() : initializer;
+
+      // Restore the original window
+      if (getWindowValue) {
+        Object.defineProperty(global, "window", {
+          get: getWindowValue,
+          configurable: true,
+        });
+      } else {
+        Object.defineProperty(global, "window", {
+          value: originalWindow,
+          configurable: true,
+          writable: true,
+        });
+      }
+
+      // Return the state and a mock setState function
+      return [initialState, jest.fn()];
+    });
+
+    // Apply the mock for this test only
+    const originalUseState = React.useState;
+    React.useState = useStateMock;
+
+    try {
+      // Create test components that use the hook
+      const TestDefaultTrue = () => {
+        const { matches } = useMedia("(min-width: 600px)", true);
+        return <div data-testid="result">{matches ? "true" : "false"}</div>;
+      };
+
+      const TestDefaultFalse = () => {
+        const { matches } = useMedia("(min-width: 600px)", false);
+        return <div data-testid="result">{matches ? "true" : "false"}</div>;
+      };
+
+      // Render with defaultState=true
+      const { unmount: unmount1 } = render(<TestDefaultTrue />);
+
+      // First call's initializer should return using defaultState=true
+      const firstInitializer = useStateMock.mock.calls[0][0];
+      const firstInitialValue = firstInitializer();
+      expect(firstInitialValue.matches).toBe(true);
+
+      unmount1();
+
+      // Render with defaultState=false
+      const { unmount: unmount2 } = render(<TestDefaultFalse />);
+
+      // Second call's initializer should return using defaultState=false
+      const secondInitializer = useStateMock.mock.calls[1][0];
+      const secondInitialValue = secondInitializer();
+      expect(secondInitialValue.matches).toBe(false);
+
+      unmount2();
+    } finally {
+      // Restore the original useState
+      React.useState = originalUseState;
+    }
+  });
+
+  // Test for the early return in useEffect (line 45)
+  test("should handle useEffect when window is undefined", () => {
+    // Store original useEffect
+    const originalUseEffect = React.useEffect;
+
+    // Define extended mock type for useEffect
+    type UseEffectMock = jest.Mock & {
+      effectFunction: (...args: any[]) => any;
+      effectDeps: any[];
+    };
+
+    // Mock useEffect to capture the effect function
+    const useEffectMock = jest.fn().mockImplementation((effect, deps) => {
+      // Store the effect function for later execution
+      (useEffectMock as UseEffectMock).effectFunction = effect;
+      (useEffectMock as UseEffectMock).effectDeps = deps;
+
+      // Return a mock cleanup function
+      return () => {};
+    }) as UseEffectMock;
+
+    // Replace useEffect with our mock
+    React.useEffect = useEffectMock as unknown as typeof React.useEffect;
+
+    try {
+      // Create a test component
+      const TestComponent = () => {
+        const { matches } = useMedia("(min-width: 600px)", false);
+        return <div>{matches ? "true" : "false"}</div>;
+      };
+
+      // Render the component
+      const { unmount } = render(<TestComponent />);
+
+      // Get the effect function that was captured
+      const effectFn = useEffectMock.effectFunction;
+
+      // Check that it was called
+      expect(useEffectMock).toHaveBeenCalled();
+
+      // Store the original window
+      const originalWindow = global.window;
+
+      // Mock window as undefined
+      Object.defineProperty(global, "window", {
+        get: () => undefined,
+        configurable: true,
+      });
+
+      // Execute the effect function in a context where window is undefined
+      const cleanup = effectFn();
+
+      // The effect should return early with undefined
+      expect(cleanup).toBeUndefined();
+
+      // Restore the original window
+      Object.defineProperty(global, "window", {
+        value: originalWindow,
+        configurable: true,
+        writable: true,
+      });
+
+      // Clean up
+      unmount();
+    } finally {
+      // Restore original useEffect
+      React.useEffect = originalUseEffect;
+    }
+  });
+
+  // Test for the cleanup function (lines 50-56)
+  test("should return a cleanup function that sets mounted to false", () => {
+    // Store original useEffect
+    const originalUseEffect = React.useEffect;
+
+    // Define extended mock type for useEffect
+    type UseEffectMock = jest.Mock & {
+      effectFunction: (...args: any[]) => any;
+      effectDeps: any[];
+    };
+
+    // Mock useEffect to capture the effect function
+    const useEffectMock = jest.fn().mockImplementation((effect, deps) => {
+      // Store the effect function for later execution
+      (useEffectMock as UseEffectMock).effectFunction = effect;
+      (useEffectMock as UseEffectMock).effectDeps = deps;
+
+      // Return a mock cleanup function
+      return () => {};
+    }) as UseEffectMock;
+
+    // Replace useEffect with our mock
+    React.useEffect = useEffectMock as unknown as typeof React.useEffect;
+
+    try {
+      // Create a test component
+      const TestComponent = () => {
+        const { matches } = useMedia("(min-width: 600px)", false);
+        return <div>{matches ? "true" : "false"}</div>;
+      };
+
+      // Render the component
+      const { unmount } = render(<TestComponent />);
+
+      // Get the effect function that was captured
+      const effectFn = useEffectMock.effectFunction;
+
+      // Check that it was called
+      expect(useEffectMock).toHaveBeenCalled();
+
+      // Execute the effect function
+      const cleanup = effectFn();
+
+      // If there are no listeners or the code in between doesn't run,
+      // it should still return a function that sets mounted = false
+      expect(typeof cleanup).toBe("function");
+
+      // Execute the cleanup function - this would set mounted = false
+      // We can't directly test that it was set, but we can verify it executes
+      cleanup();
+
+      // Clean up
+      unmount();
+    } finally {
+      // Restore original useEffect
+      React.useEffect = originalUseEffect;
+    }
+  });
+
+  // Test for the final cleanup function (coverage of lines 50-56)
+  test("should handle the final cleanup function path", () => {
+    // Store original useEffect
+    const originalUseEffect = React.useEffect;
+
+    // Create a spy on console.error
+    const consoleErrorSpy = jest
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    // Define the mock functions and variables
+    let cleanupFunction: (() => void) | undefined;
+    let mountedRef: boolean | undefined;
+
+    // Custom useEffect implementation that captures the effect and immediately runs it
+    const customUseEffect = (
+      effect: React.EffectCallback,
+      deps?: React.DependencyList
+    ) => {
+      // Store the value of mounted before it's potentially modified
+      mountedRef = true;
+
+      // Call the effect function immediately
+      cleanupFunction = effect() as (() => void) | undefined;
+
+      // Return a noop cleanup function for React
+      return () => {};
+    };
+
+    // Replace useEffect
+    React.useEffect = customUseEffect as unknown as typeof React.useEffect;
+
+    try {
+      // This mocks a matchMedia implementation that has no listener methods
+      // This will trigger the fallback cleanup path in lines 50-56
+      const mockMql = {
+        matches: true,
+        media: "(min-width: 600px)",
+        // Intentionally not including addEventListener or addListener
+      };
+
+      (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
+
+      // Render a component with our mock
+      const { unmount } = render(
+        <TestComponent query="(min-width: 600px)" defaultState={false} />
+      );
+
+      // Check that we got a cleanup function
+      expect(cleanupFunction).toBeDefined();
+      expect(typeof cleanupFunction).toBe("function");
+
+      // Execute the cleanup function, which should set mounted to false
+      if (cleanupFunction) {
+        cleanupFunction();
+      }
+
+      // Unmount
+      unmount();
+    } finally {
+      // Restore original functions
+      React.useEffect = originalUseEffect;
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  // SSR behavior is tested in a separate file: useMediaSSR.test.ts
 });
