@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import useAsync from "../../../src/hooks/useAsync";
 
 export default {
@@ -30,6 +30,147 @@ const fetchUserData = (userId, shouldFail = false) => {
       }
     }, 1500); // 1.5 second delay
   });
+};
+
+// Error Display Component
+const ErrorDisplay = ({ error }) => {
+  if (!error) return null;
+
+  return (
+    <div
+      style={{
+        color: "#721c24",
+        padding: "15px",
+        backgroundColor: "#f8d7da",
+        borderRadius: "4px",
+        border: "1px solid #f5c6cb",
+        marginTop: "10px",
+        fontSize: "14px",
+      }}
+    >
+      <div
+        style={{ fontWeight: "bold", marginBottom: "8px", fontSize: "16px" }}
+      >
+        Error: {error.message}
+      </div>
+
+      {error.originalError && (
+        <div style={{ marginTop: "10px" }}>
+          <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+            Original Error:
+          </div>
+          <div
+            style={{
+              padding: "8px",
+              backgroundColor: "rgba(0,0,0,0.05)",
+              borderRadius: "3px",
+              fontFamily: "monospace",
+              whiteSpace: "pre-wrap",
+              wordBreak: "break-word",
+            }}
+          >
+            {String(error.originalError)}
+          </div>
+        </div>
+      )}
+
+      {error.context && (
+        <div style={{ marginTop: "10px" }}>
+          <div style={{ fontWeight: "bold", marginBottom: "4px" }}>
+            Context:
+          </div>
+          <pre
+            style={{
+              margin: "0",
+              padding: "8px",
+              backgroundColor: "rgba(0,0,0,0.05)",
+              borderRadius: "3px",
+              maxHeight: "150px",
+              overflow: "auto",
+              fontFamily: "monospace",
+            }}
+          >
+            {JSON.stringify(error.context, null, 2)}
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+};
+
+// Retry Progress Display Component
+const RetryProgress = ({
+  isRetrying,
+  attemptCount,
+  maxRetries,
+  retryDelay,
+}) => {
+  const [countdown, setCountdown] = useState(retryDelay);
+
+  useEffect(() => {
+    if (!isRetrying) {
+      setCountdown(retryDelay);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setCountdown((prev) => Math.max(0, prev - 100));
+    }, 100);
+
+    return () => clearInterval(timer);
+  }, [isRetrying, retryDelay]);
+
+  if (!isRetrying) return null;
+
+  const progressPercent = ((retryDelay - countdown) / retryDelay) * 100;
+
+  return (
+    <div
+      style={{
+        backgroundColor: "#fff3cd",
+        border: "1px solid #ffeeba",
+        color: "#856404",
+        padding: "12px",
+        borderRadius: "4px",
+        marginTop: "10px",
+      }}
+    >
+      <div
+        style={{ display: "flex", alignItems: "center", marginBottom: "8px" }}
+      >
+        <span role="img" aria-label="warning" style={{ marginRight: "8px" }}>
+          ⚠️
+        </span>
+        <span style={{ fontWeight: "bold" }}>
+          Retry in progress: Attempt {attemptCount} of {maxRetries}
+        </span>
+      </div>
+
+      <div
+        style={{
+          height: "10px",
+          width: "100%",
+          backgroundColor: "#ffeeba",
+          borderRadius: "5px",
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            height: "100%",
+            width: `${progressPercent}%`,
+            backgroundColor: "#ff9800",
+            borderRadius: "5px",
+            transition: "width 0.1s linear",
+          }}
+        ></div>
+      </div>
+
+      <div style={{ textAlign: "right", fontSize: "12px", marginTop: "4px" }}>
+        {Math.ceil(countdown / 1000)}s until next attempt
+      </div>
+    </div>
+  );
 };
 
 export const Default = () => {
@@ -121,10 +262,39 @@ export const Default = () => {
       </div>
 
       <div>
-        <h4>
-          Status:{" "}
-          <span style={{ color: getStatusColor(status) }}>{status}</span>
-        </h4>
+        <div
+          style={{
+            padding: "10px",
+            backgroundColor: "#f8f9fa",
+            borderRadius: "4px",
+            marginBottom: "15px",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <div style={{ fontWeight: "bold", marginRight: "8px" }}>Status:</div>
+          <div
+            style={{
+              display: "inline-block",
+              padding: "4px 8px",
+              backgroundColor: getStatusBgColor(status),
+              color: getStatusColor(status),
+              borderRadius: "4px",
+              fontWeight: "bold",
+            }}
+          >
+            {status.toUpperCase()}
+          </div>
+        </div>
+
+        {isRetrying && (
+          <RetryProgress
+            isRetrying={isRetrying}
+            attemptCount={attemptCount}
+            maxRetries={1}
+            retryDelay={1000}
+          />
+        )}
 
         {status === "success" && (
           <div>
@@ -142,36 +312,7 @@ export const Default = () => {
           </div>
         )}
 
-        {status === "error" && (
-          <div>
-            <h4>Error Details:</h4>
-            <div
-              style={{
-                color: "#ff0000",
-                padding: "10px",
-                backgroundColor: "#fff0f0",
-                borderRadius: "4px",
-              }}
-            >
-              <div>
-                <strong>Message:</strong> {error.message}
-              </div>
-              {error.originalError && (
-                <div style={{ marginTop: "5px" }}>
-                  <strong>Original Error:</strong> {String(error.originalError)}
-                </div>
-              )}
-              {error.context && (
-                <div style={{ marginTop: "5px" }}>
-                  <strong>Context:</strong>
-                  <pre style={{ margin: "5px 0 0 0" }}>
-                    {JSON.stringify(error.context, null, 2)}
-                  </pre>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {status === "error" && <ErrorDisplay error={error} />}
       </div>
 
       <p style={{ marginTop: "20px", fontStyle: "italic", color: "#666" }}>
@@ -185,17 +326,34 @@ export const Default = () => {
 function getStatusColor(status) {
   switch (status) {
     case "idle":
-      return "#888888";
+      return "#6c757d";
     case "pending":
-      return "#FFA500";
+      return "#0056b3";
     case "retrying":
-      return "#FF9800";
+      return "#856404";
     case "success":
-      return "#4CAF50";
+      return "#155724";
     case "error":
-      return "#FF0000";
+      return "#721c24";
     default:
       return "#000000";
+  }
+}
+
+function getStatusBgColor(status) {
+  switch (status) {
+    case "idle":
+      return "#e9ecef";
+    case "pending":
+      return "#cce5ff";
+    case "retrying":
+      return "#fff3cd";
+    case "success":
+      return "#d4edda";
+    case "error":
+      return "#f8d7da";
+    default:
+      return "#ffffff";
   }
 }
 
@@ -324,7 +482,7 @@ export const WithRetry = () => {
             {status === "pending"
               ? "Loading..."
               : status === "retrying"
-              ? `Retrying (${attemptCount}/${retryCount})...`
+              ? `Retrying...`
               : "Execute with Retry"}
           </button>
 
@@ -352,28 +510,33 @@ export const WithRetry = () => {
             backgroundColor: "#f8f9fa",
             borderRadius: "4px",
             marginBottom: "15px",
+            display: "flex",
+            alignItems: "center",
           }}
         >
-          <h4 style={{ margin: "0 0 10px 0" }}>
-            Status:{" "}
-            <span style={{ color: getStatusColor(status) }}>{status}</span>
-          </h4>
-          {isRetrying && (
-            <div
-              style={{
-                backgroundColor: "#fff3cd",
-                border: "1px solid #ffeeba",
-                color: "#856404",
-                padding: "10px",
-                borderRadius: "4px",
-                marginTop: "10px",
-              }}
-            >
-              <span style={{ marginRight: "8px" }}>⚠️</span>
-              Retrying attempt {attemptCount} of {retryCount}...
-            </div>
-          )}
+          <div style={{ fontWeight: "bold", marginRight: "8px" }}>Status:</div>
+          <div
+            style={{
+              display: "inline-block",
+              padding: "4px 8px",
+              backgroundColor: getStatusBgColor(status),
+              color: getStatusColor(status),
+              borderRadius: "4px",
+              fontWeight: "bold",
+            }}
+          >
+            {status.toUpperCase()}
+          </div>
         </div>
+
+        {isRetrying && (
+          <RetryProgress
+            isRetrying={isRetrying}
+            attemptCount={attemptCount}
+            maxRetries={retryCount}
+            retryDelay={retryDelay}
+          />
+        )}
 
         {status === "success" && (
           <div>
@@ -391,34 +554,27 @@ export const WithRetry = () => {
           </div>
         )}
 
-        {status === "error" && (
-          <div>
-            <h4>Error Details (after {attemptCount} attempts):</h4>
-            <div
-              style={{
-                color: "#721c24",
-                padding: "10px",
-                backgroundColor: "#f8d7da",
-                borderRadius: "4px",
-                border: "1px solid #f5c6cb",
-              }}
-            >
-              <div>
-                <strong>Message:</strong> {error.message}
-              </div>
-              {error.originalError && (
-                <div style={{ marginTop: "5px" }}>
-                  <strong>Original Error:</strong> {String(error.originalError)}
-                </div>
-              )}
-              {error.context && (
-                <div style={{ marginTop: "5px" }}>
-                  <strong>Context:</strong>
-                  <pre style={{ margin: "5px 0 0 0" }}>
-                    {JSON.stringify(error.context, null, 2)}
-                  </pre>
-                </div>
-              )}
+        {status === "error" && <ErrorDisplay error={error} />}
+
+        {status === "error" && attemptCount > 0 && (
+          <div
+            style={{
+              marginTop: "10px",
+              padding: "10px",
+              backgroundColor: "#f5f5f5",
+              borderRadius: "4px",
+              border: "1px solid #e0e0e0",
+            }}
+          >
+            <div style={{ fontWeight: "bold", marginBottom: "5px" }}>
+              Retry Summary:
+            </div>
+            <div>
+              Made {attemptCount} attempt{attemptCount !== 1 ? "s" : ""} with{" "}
+              {retryDelay}ms delay between attempts
+            </div>
+            <div style={{ marginTop: "5px" }}>
+              Maximum retry count: {retryCount}
             </div>
           </div>
         )}

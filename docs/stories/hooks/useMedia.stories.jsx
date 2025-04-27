@@ -15,17 +15,48 @@ export default {
 };
 
 export const Default = () => {
-  const isMobile = useMedia("(max-width: 480px)");
-  const isTablet = useMedia("(min-width: 481px) and (max-width: 1024px)");
-  const isDesktop = useMedia("(min-width: 1025px)");
-  const isDarkMode = useMedia("(prefers-color-scheme: dark)");
-  const prefersReducedMotion = useMedia("(prefers-reduced-motion: reduce)");
+  const { matches: isMobile, error: mobileError } =
+    useMedia("(max-width: 480px)");
+  const { matches: isTablet, error: tabletError } = useMedia(
+    "(min-width: 481px) and (max-width: 1024px)"
+  );
+  const { matches: isDesktop, error: desktopError } = useMedia(
+    "(min-width: 1025px)"
+  );
+  const { matches: isDarkMode, error: darkModeError } = useMedia(
+    "(prefers-color-scheme: dark)"
+  );
+  const { matches: prefersReducedMotion, error: motionError } = useMedia(
+    "(prefers-reduced-motion: reduce)"
+  );
+
+  // Combined error from any media query
+  const hasError =
+    mobileError || tabletError || desktopError || darkModeError || motionError;
 
   return (
     <div
       style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
     >
       <h3>Media Query Detection Demo</h3>
+
+      {hasError && (
+        <div
+          style={{
+            padding: "10px",
+            marginBottom: "15px",
+            backgroundColor: "#ffebee",
+            color: "#c62828",
+            border: "1px solid #ffcdd2",
+            borderRadius: "4px",
+          }}
+        >
+          <strong>Error:</strong> There was a problem with media queries.
+          <div style={{ marginTop: "5px", fontSize: "14px" }}>
+            {hasError.message}
+          </div>
+        </div>
+      )}
 
       <p style={{ marginBottom: "20px" }}>
         This demo uses the <code>useMedia</code> hook to respond to different
@@ -94,26 +125,31 @@ export const Default = () => {
             label="Mobile"
             query="(max-width: 480px)"
             isMatching={isMobile}
+            error={mobileError}
           />
           <MediaQueryRow
             label="Tablet"
             query="(min-width: 481px) and (max-width: 1024px)"
             isMatching={isTablet}
+            error={tabletError}
           />
           <MediaQueryRow
             label="Desktop"
             query="(min-width: 1025px)"
             isMatching={isDesktop}
+            error={desktopError}
           />
           <MediaQueryRow
             label="Dark Mode"
             query="(prefers-color-scheme: dark)"
             isMatching={isDarkMode}
+            error={darkModeError}
           />
           <MediaQueryRow
             label="Reduced Motion"
             query="(prefers-reduced-motion: reduce)"
             isMatching={prefersReducedMotion}
+            error={motionError}
           />
         </tbody>
       </table>
@@ -245,7 +281,7 @@ export const Default = () => {
   );
 };
 
-const MediaQueryRow = ({ label, query, isMatching }) => (
+const MediaQueryRow = ({ label, query, isMatching, error }) => (
   <tr>
     <td style={{ padding: "10px", borderBottom: "1px solid #ddd" }}>
       <div>
@@ -254,6 +290,11 @@ const MediaQueryRow = ({ label, query, isMatching }) => (
       <div style={{ fontSize: "14px", color: "#666", fontFamily: "monospace" }}>
         {query}
       </div>
+      {error && (
+        <div style={{ fontSize: "13px", color: "#c62828", marginTop: "5px" }}>
+          Error: {error.message}
+        </div>
+      )}
     </td>
     <td
       style={{
@@ -267,12 +308,16 @@ const MediaQueryRow = ({ label, query, isMatching }) => (
           display: "inline-block",
           padding: "4px 10px",
           borderRadius: "20px",
-          backgroundColor: isMatching ? "#e8f5e9" : "#ffebee",
-          color: isMatching ? "#2e7d32" : "#c62828",
+          backgroundColor: error
+            ? "#f5f5f5"
+            : isMatching
+            ? "#e8f5e9"
+            : "#ffebee",
+          color: error ? "#757575" : isMatching ? "#2e7d32" : "#c62828",
           fontWeight: "bold",
         }}
       >
-        {isMatching ? "Matching" : "Not Matching"}
+        {error ? "Error" : isMatching ? "Matching" : "Not Matching"}
       </span>
     </td>
   </tr>

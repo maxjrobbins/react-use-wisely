@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { AsyncError } from "./errors";
+import { safeStringify } from "../utils/helpers";
 
 /**
  * Hook for managing async operations
@@ -55,11 +56,16 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
           setStatus("success");
           return response;
         } catch (error) {
+          // Create a safe params representation for error context
+          const safeParams = params.map((param) => safeStringify(param));
+
           const asyncError = new AsyncError(
             error instanceof Error ? error.message : "Unknown async error",
             error,
-            { params: JSON.stringify(params), attempt: currentAttempt }
+            { params: safeParams, attempt: currentAttempt }
           );
+
+          console.log("asyncError", asyncError, currentAttempt, retryCount);
 
           // Check if we should retry
           if (currentAttempt < retryCount) {
