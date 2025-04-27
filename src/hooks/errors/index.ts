@@ -27,6 +27,89 @@ export class AsyncError extends BaseError {
 }
 
 /**
+ * Error class for fetch-related errors
+ */
+export class FetchError extends BaseError {
+  status?: number;
+  statusText?: string;
+
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown> & { status?: number; statusText?: string }
+  ) {
+    super(message, originalError, context);
+
+    if (context) {
+      this.status = context.status;
+      this.statusText = context.statusText as string;
+    }
+  }
+}
+
+/**
+ * Error class for script loading errors
+ */
+export class ScriptError extends BaseError {
+  src?: string;
+
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown> & { src?: string }
+  ) {
+    super(message, originalError, context);
+
+    if (context) {
+      this.src = context.src as string;
+    }
+  }
+}
+
+/**
+ * Error class for permission-related errors
+ */
+export class PermissionError extends BaseError {
+  permissionName?: string;
+  state?: PermissionState;
+
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown> & {
+      permissionName?: string;
+      state?: PermissionState;
+    }
+  ) {
+    super(message, originalError, context);
+
+    if (context) {
+      this.permissionName = context.permissionName as string;
+      this.state = context.state as PermissionState;
+    }
+  }
+}
+
+/**
+ * Error class for speech recognition errors
+ */
+export class SpeechRecognitionError extends BaseError {
+  errorCode?: number;
+
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown> & { errorCode?: number }
+  ) {
+    super(message, originalError, context);
+
+    if (context) {
+      this.errorCode = context.errorCode as number;
+    }
+  }
+}
+
+/**
  * Error class for geolocation-related errors
  */
 export class GeolocationError extends BaseError {
@@ -132,6 +215,19 @@ export class ResizeObserverNotSupportedError extends ResizeObserverError {
   }
 }
 
+/**
+ * Error class for network speed detection errors
+ */
+export class NetworkSpeedError extends BaseError {
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown>
+  ) {
+    super(message, originalError, context);
+  }
+}
+
 export { BaseError };
 export default {
   BaseError,
@@ -145,4 +241,9 @@ export default {
   NetworkError,
   ResizeObserverError,
   ResizeObserverNotSupportedError,
+  FetchError,
+  ScriptError,
+  PermissionError,
+  SpeechRecognitionError,
+  NetworkSpeedError,
 };
