@@ -346,6 +346,59 @@ const [state, dispatch] = useReducerWithMiddleware(
 );
 ```
 
+## Optimized Bundle Size
+
+React-Use-Wisely is fully optimized for tree-shaking, allowing you to include only the hooks you actually use in your final bundle. This means your production builds will be smaller and more efficient.
+
+### Import Strategies
+
+You can import hooks in several ways, depending on your needs:
+
+#### 1. Direct hook imports (recommended for production)
+
+Individually import only the hooks you need to ensure minimal bundle size:
+
+```jsx
+import useOnline from "react-use-wisely/hooks/useOnline";
+import useLocalStorage from "react-use-wisely/hooks/useLocalStorage";
+
+function MyComponent() {
+  const isOnline = useOnline();
+  const [user, setUser] = useLocalStorage("user", null);
+  // ...
+}
+```
+
+#### 2. Category imports
+
+Import related hooks by category:
+
+```jsx
+import {
+  useOnline,
+  useNetworkSpeed,
+  usePermission,
+} from "react-use-wisely/categories/browser";
+import {
+  useLocalStorage,
+  useDebounce,
+} from "react-use-wisely/categories/utilities";
+```
+
+#### 3. All hooks (not recommended for production)
+
+Import everything (only use this during development):
+
+```jsx
+import {
+  useOnline,
+  useLocalStorage,
+  useDebounce /* ... */,
+} from "react-use-wisely";
+```
+
+The package is configured with `"sideEffects": false` to ensure modern bundlers can tree-shake unused hooks. For the smallest possible bundle size, use approach #1 and import only what you need.
+
 ## Server-Side Rendering
 
 All hooks are designed to work with server-side rendering. They check for browser environment before accessing browser APIs.
