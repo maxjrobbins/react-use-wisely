@@ -1,58 +1,69 @@
 import { useState, useEffect } from "react";
 import { MediaError } from "./errors";
+import { features, runInBrowser } from "../utils/browser";
 
 interface MediaState {
   matches: boolean;
   error: MediaError | null;
+  isSupported: boolean;
 }
 
 /**
  * Hook for media queries
  * @param query - The media query string
  * @param defaultState - Default state before matches is detected
- * @returns An object with matches state and error
+ * @returns An object with matches state, error, and feature support information
  */
 const useMedia = (query: string, defaultState = false): MediaState => {
-  // State for both matches and error
-  const [state, setState] = useState<MediaState>(() => {
-    if (typeof window === "undefined") {
-      return { matches: defaultState, error: null };
-    }
+  // Check if media queries are supported
+  const isSupported = features.mediaQueries();
 
-    try {
-      return {
-        matches: window.matchMedia
-          ? window.matchMedia(query).matches
-          : defaultState,
-        error: !window.matchMedia
-          ? new MediaError("matchMedia API is not available in this browser")
-          : null,
-      };
-    } catch (error) {
-      const mediaError = new MediaError(
-        `Error initializing media query "${query}"`,
-        error,
-        { query }
-      );
-      console.error(mediaError);
-      return { matches: defaultState, error: mediaError };
-    }
+  // State for matches, error, and support status
+  const [state, setState] = useState<MediaState>(() => {
+    return runInBrowser<MediaState>(
+      () => {
+        if (!isSupported) {
+          return {
+            matches: defaultState,
+            error: new MediaError(
+              "matchMedia API is not available in this browser"
+            ),
+            isSupported: false,
+          };
+        }
+
+        try {
+          return {
+            matches: window.matchMedia(query).matches,
+            error: null,
+            isSupported: true,
+          };
+        } catch (error) {
+          const mediaError = new MediaError(
+            `Error initializing media query "${query}"`,
+            error,
+            { query }
+          );
+          console.error(mediaError);
+          return {
+            matches: defaultState,
+            error: mediaError,
+            isSupported: true, // API is supported but query might be invalid
+          };
+        }
+      },
+      // Default state for non-browser environments
+      () => ({
+        matches: defaultState,
+        error: null,
+        isSupported: false,
+      })
+    );
   });
 
   useEffect(() => {
-    // Return early if window is not available (SSR)
-    if (typeof window === "undefined") {
-      return undefined;
-    }
-
-    // Return early if matchMedia is not available
-    if (!window.matchMedia) {
-      setState({
-        matches: defaultState,
-        error: new MediaError(
-          "matchMedia API is not available in this browser"
-        ),
-      });
+    // Return early if not supported
+    if (!isSupported) {
       return undefined;
     }
 
@@ -63,13 +74,20 @@ const useMedia = (query: string, defaultState = false): MediaState => {
 
       const onChange = () => {
         if (!mounted) return;
-        setState({ matches: mql.matches, error: null });
+        setState((prev) => ({
+          ...prev,
+          matches: mql.matches,
+          error: null,
+        }));
       };
+
+      // Initial call to set the correct value immediately
+      onChange();
 
       // Listen for changes
       try {
         // Modern browsers
-        if ("addEventListener" in mql) {
+        if (typeof mql.addEventListener === "function") {
           mql.addEventListener("change", onChange);
           return () => {
             mounted = false;
@@ -77,13 +95,18 @@ const useMedia = (query: string, defaultState = false): MediaState => {
           };
         }
         // Older browsers
-        else if ("addListener" in mql) {
-          // Use any type assertion to handle deprecated API
-          (mql as any).addListener(onChange);
+        else if (typeof mql.addListener === "function") {
+          // Use addListener for older browsers
+          mql.addListener(onChange);
           return () => {
             mounted = false;
-            (mql as any).removeListener(onChange);
+            mql.removeListener(onChange);
           };
+        } else {
+          // If neither method is available, log an error
+          throw new Error(
+            "Neither addEventListener nor addListener is available on MediaQueryList"
+          );
         }
       } catch (listenerError) {
         const mediaError = new MediaError(
@@ -107,7 +130,7 @@ const useMedia = (query: string, defaultState = false): MediaState => {
     return () => {
       mounted = false;
     };
-  }, [query, defaultState]);
+  }, [query, isSupported]);
 
   return state;
 };

@@ -1,11 +1,33 @@
 // Copy text to clipboard
 import { useState, useCallback } from "react";
 import { ClipboardError } from "./errors";
+import { features, isFeatureSupported } from "../utils/browser";
 
 interface ClipboardState {
   isCopied: boolean;
   error: ClipboardError | null;
+  isSupported: boolean;
 }
+
+/**
+ * Check if the Clipboard API is supported
+ */
+const isClipboardApiSupported = (): boolean => {
+  return features.clipboard.write();
+};
+
+/**
+ * Check if the document.execCommand('copy') method is supported (fallback method)
+ */
+const isExecCommandSupported = (): boolean => {
+  return isFeatureSupported("execCommand", () => {
+    return (
+      typeof document !== "undefined" &&
+      typeof document.execCommand === "function" &&
+      document.queryCommandSupported("copy")
+    );
+  });
+};
 
 /**
  * Hook for clipboard operations
@@ -17,12 +39,19 @@ const useClipboard = (
 ): {
   isCopied: boolean;
   error: ClipboardError | null;
+  isSupported: boolean;
   copy: (text: string) => Promise<boolean>;
   reset: () => void;
 } => {
+  // Check feature support
+  const clipboardApiSupported = isClipboardApiSupported();
+  const fallbackSupported = isExecCommandSupported();
+  const isSupported = clipboardApiSupported || fallbackSupported;
+
   const [state, setState] = useState<ClipboardState>({
     isCopied: false,
     error: null,
+    isSupported,
   });
 
   // Reset state
@@ -30,8 +59,9 @@ const useClipboard = (
     setState({
       isCopied: false,
       error: null,
+      isSupported,
     });
-  }, []);
+  }, [isSupported]);
 
   // Function to copy text to clipboard
   const copyToClipboard = useCallback(
@@ -40,9 +70,24 @@ const useClipboard = (
       setState({
         isCopied: false,
         error: null,
+        isSupported,
       });
 
-      if (!navigator.clipboard) {
+      // If no clipboard support at all, return error immediately
+      if (!isSupported) {
+        const clipboardError = new ClipboardError(
+          "Clipboard operations are not supported in this browser"
+        );
+        console.error(clipboardError);
+        setState({
+          isCopied: false,
+          error: clipboardError,
+          isSupported: false,
+        });
+        return false;
+      }
+
+      if (!clipboardApiSupported) {
         // Fallback for older browsers
         // First check if document.body exists
         if (!document || !document.body) {
@@ -50,7 +95,11 @@ const useClipboard = (
             "Failed to copy text using fallback method: document.body is not available"
           );
           console.error(clipboardError);
-          setState({ isCopied: false, error: clipboardError });
+          setState({
+            isCopied: false,
+            error: clipboardError,
+            isSupported,
+          });
           return false;
         }
 
@@ -90,7 +139,7 @@ const useClipboard = (
             throw new Error("Copy command was unsuccessful");
           }
 
-          setState({ isCopied: true, error: null });
+          setState({ isCopied: true, error: null, isSupported });
 
           setTimeout(() => {
             setState((prev) => ({ ...prev, isCopied: false }));
@@ -103,7 +152,7 @@ const useClipboard = (
             err
           );
           console.error(clipboardError);
-          setState({ isCopied: false, error: clipboardError });
+          setState({ isCopied: false, error: clipboardError, isSupported });
           return false;
         } finally {
           document.body.removeChild(textArea);
@@ -113,7 +162,7 @@ const useClipboard = (
       // Modern approach with Clipboard API
       try {
         await navigator.clipboard.writeText(text);
-        setState({ isCopied: true, error: null });
+        setState({ isCopied: true, error: null, isSupported });
 
         setTimeout(() => {
           setState((prev) => ({ ...prev, isCopied: false }));
@@ -137,16 +186,17 @@ const useClipboard = (
 
         const clipboardError = new ClipboardError(errorMessage, err);
         console.error(clipboardError);
-        setState({ isCopied: false, error: clipboardError });
+        setState({ isCopied: false, error: clipboardError, isSupported });
         return false;
       }
     },
-    [timeout]
+    [timeout, clipboardApiSupported, isSupported]
   );
 
   return {
     isCopied: state.isCopied,
     error: state.error,
+    isSupported,
     copy: copyToClipboard,
     reset,
   };

@@ -1,30 +1,51 @@
 import { useState, useEffect } from "react";
+import { features, runInBrowser } from "../utils/browser";
+
+interface PageVisibilityState {
+  isVisible: boolean;
+  isSupported: boolean;
+}
 
 /**
  * Hook to detect when users navigate away from the page
- * @returns {boolean} Whether the page is currently visible
+ * @returns An object with the page visibility state and whether the API is supported
  */
-function usePageVisibility(): boolean {
-  // Get the initial visibility state
-  const [isVisible, setIsVisible] = useState<boolean>(() => {
-    // Check for window to avoid SSR issues
-    if (typeof window === "undefined" || !document) {
-      return true;
-    }
+function usePageVisibility(): PageVisibilityState {
+  // Check if the Page Visibility API is supported
+  const isSupported = features.pageVisibility();
 
-    // Use document.hidden or document.visibilityState
-    return !document.hidden;
-  });
+  // Get the initial visibility state
+  const [visibilityState, setVisibilityState] = useState<PageVisibilityState>(
+    () => {
+      return runInBrowser(
+        () => {
+          if (!isSupported) {
+            return { isVisible: true, isSupported: false };
+          }
+
+          return {
+            isVisible: !document.hidden,
+            isSupported: true,
+          };
+        },
+        // Default state for non-browser environments
+        () => ({ isVisible: true, isSupported: false })
+      );
+    }
+  );
 
   useEffect(() => {
-    // Skip for SSR
-    if (typeof window === "undefined" || !document) {
+    // Skip for SSR or if not supported
+    if (!isSupported) {
       return;
     }
 
     // Define the visibility change handler
     const handleVisibilityChange = () => {
-      setIsVisible(!document.hidden);
+      setVisibilityState({
+        isVisible: !document.hidden,
+        isSupported: true,
+      });
     };
 
     // Add event listener
@@ -34,9 +55,9 @@ function usePageVisibility(): boolean {
     return () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
-  }, []);
+  }, [isSupported]);
 
-  return isVisible;
+  return visibilityState;
 }
 
 export default usePageVisibility;

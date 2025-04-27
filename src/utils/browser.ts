@@ -81,11 +81,172 @@ export const isFeatureSupported = (
   featureName: string,
   detectionFunction: () => boolean
 ): boolean => {
+  if (!isBrowser) return false;
+
   if (featureSupport.has(featureName)) {
     return featureSupport.get(featureName)!;
   }
 
-  const isSupported = detectionFunction();
-  featureSupport.set(featureName, isSupported);
-  return isSupported;
+  try {
+    const isSupported = detectionFunction();
+    featureSupport.set(featureName, isSupported);
+    return isSupported;
+  } catch (error) {
+    console.warn(`Error during feature detection for ${featureName}:`, error);
+    featureSupport.set(featureName, false);
+    return false;
+  }
 };
+
+/**
+ * Built-in feature detection for common browser APIs
+ */
+export const features = {
+  geolocation: (): boolean =>
+    isFeatureSupported(
+      "geolocation",
+      () => isBrowser && "geolocation" in navigator
+    ),
+
+  notifications: (): boolean =>
+    isFeatureSupported(
+      "notifications",
+      () => isBrowser && "Notification" in window
+    ),
+
+  speechRecognition: (): boolean =>
+    isFeatureSupported(
+      "speechRecognition",
+      () =>
+        isBrowser &&
+        ("SpeechRecognition" in window || "webkitSpeechRecognition" in window)
+    ),
+
+  clipboard: {
+    read: (): boolean =>
+      isFeatureSupported(
+        "clipboard.read",
+        () =>
+          isBrowser &&
+          "clipboard" in navigator &&
+          "readText" in navigator.clipboard
+      ),
+
+    write: (): boolean =>
+      isFeatureSupported(
+        "clipboard.write",
+        () =>
+          isBrowser &&
+          "clipboard" in navigator &&
+          "writeText" in navigator.clipboard
+      ),
+  },
+
+  permissions: (): boolean =>
+    isFeatureSupported(
+      "permissions",
+      () => isBrowser && "permissions" in navigator
+    ),
+
+  online: (): boolean =>
+    isFeatureSupported("online", () => isBrowser && "onLine" in navigator),
+
+  mediaQueries: (): boolean =>
+    isFeatureSupported(
+      "mediaQueries",
+      () => isBrowser && "matchMedia" in window
+    ),
+
+  pageVisibility: (): boolean =>
+    isFeatureSupported(
+      "pageVisibility",
+      () =>
+        isBrowser &&
+        (document.hidden !== undefined || "visibilityState" in document)
+    ),
+
+  intersectionObserver: (): boolean =>
+    isFeatureSupported(
+      "intersectionObserver",
+      () => isBrowser && "IntersectionObserver" in window
+    ),
+
+  resizeObserver: (): boolean =>
+    isFeatureSupported(
+      "resizeObserver",
+      () => isBrowser && "ResizeObserver" in window
+    ),
+
+  localStorage: (): boolean =>
+    isFeatureSupported("localStorage", () => {
+      if (!isBrowser) return false;
+      try {
+        const testKey = "__test_storage__";
+        localStorage.setItem(testKey, "test");
+        localStorage.removeItem(testKey);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }),
+
+  sessionStorage: (): boolean =>
+    isFeatureSupported("sessionStorage", () => {
+      if (!isBrowser) return false;
+      try {
+        const testKey = "__test_storage__";
+        sessionStorage.setItem(testKey, "test");
+        sessionStorage.removeItem(testKey);
+        return true;
+      } catch (e) {
+        return false;
+      }
+    }),
+
+  mediaDevices: {
+    getUserMedia: (): boolean =>
+      isFeatureSupported(
+        "mediaDevices.getUserMedia",
+        () =>
+          isBrowser &&
+          "mediaDevices" in navigator &&
+          "getUserMedia" in navigator.mediaDevices
+      ),
+  },
+
+  passiveEvents: (): boolean =>
+    isFeatureSupported("passiveEvents", () => {
+      if (!isBrowser) return false;
+      let supportsPassive = false;
+      try {
+        // Test via a getter in the options object to see if the passive property is accessed
+        const opts = Object.defineProperty({}, "passive", {
+          get: function () {
+            supportsPassive = true;
+            return true;
+          },
+        });
+        window.addEventListener("testPassive", null as any, opts);
+        window.removeEventListener("testPassive", null as any, opts);
+      } catch (e) {}
+      return supportsPassive;
+    }),
+};
+
+/**
+ * Safely runs browser-only code with a fallback
+ * @param browserFn - Function to run in browser environments
+ * @param fallbackFn - Optional fallback for non-browser environments
+ * @returns The result of the appropriate function
+ */
+export function runInBrowser<T>(browserFn: () => T, fallbackFn?: () => T): T {
+  if (isBrowser) {
+    try {
+      return browserFn();
+    } catch (error) {
+      console.warn("Error running browser code:", error);
+      return fallbackFn ? fallbackFn() : (undefined as unknown as T);
+    }
+  }
+  return fallbackFn ? fallbackFn() : (undefined as unknown as T);
+}

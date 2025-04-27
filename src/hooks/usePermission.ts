@@ -1,5 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { PermissionError } from "./errors";
+import { features } from "../utils/browser";
 
 // Use PermissionName from the DOM types if available, or define our own
 type CustomPermissionName =
@@ -45,21 +46,42 @@ function usePermission(
   );
   const [error, setError] = useState<PermissionError | null>(null);
 
+  // Check if permissions API is supported using our feature detection
+  const isPermissionsSupported = features.permissions();
+
+  // Check for specific feature support based on permission name
+  const getFeatureSupport = useCallback((): boolean => {
+    switch (permissionName) {
+      case "geolocation":
+        return features.geolocation();
+      case "notifications":
+        return features.notifications();
+      case "clipboard-read":
+        return features.clipboard.read();
+      case "clipboard-write":
+        return features.clipboard.write();
+      case "camera":
+      case "microphone":
+        return features.mediaDevices.getUserMedia();
+      default:
+        // For other permissions, rely on the Permissions API
+        return isPermissionsSupported;
+    }
+  }, [permissionName, isPermissionsSupported]);
+
+  // Is the specific feature supported
+  const isFeatureSupported = getFeatureSupport();
+
   // Derived state
   const isGranted = state === "granted";
   const isDenied = state === "denied";
   const isPrompt = state === "prompt";
 
-  // Check if the Permissions API is supported
-  const isPermissionSupported = (): boolean => {
-    return typeof window !== "undefined" && "permissions" in navigator;
-  };
-
   // Get current permission state
-  const getPermissionState = async (): Promise<
+  const getPermissionState = useCallback(async (): Promise<
     PermissionState | "unsupported"
   > => {
-    if (!isPermissionSupported()) {
+    if (!isPermissionsSupported || !isFeatureSupported) {
       return "unsupported";
     }
 
@@ -77,16 +99,36 @@ function usePermission(
           { permissionName }
         )
       );
+
+      // If permissions API fails, we can try to infer state for common permissions
+      if (isFeatureSupported) {
+        // Try alternative detection for common permissions
+        try {
+          switch (permissionName) {
+            case "notifications":
+              if ("Notification" in window) {
+                return Notification.permission as PermissionState;
+              }
+              break;
+            // Can't easily detect other permissions without requesting them
+          }
+        } catch (e) {
+          // Silently fail fallback detection
+        }
+      }
+
       return "unsupported";
     }
-  };
+  }, [permissionName, isPermissionsSupported, isFeatureSupported]);
 
   // Request permission (for some permissions this will trigger the prompt)
-  const request = async (): Promise<PermissionState | "unsupported"> => {
-    if (!isPermissionSupported()) {
+  const request = useCallback(async (): Promise<
+    PermissionState | "unsupported"
+  > => {
+    if (!isFeatureSupported) {
       setError(
         new PermissionError(
-          "Permissions API is not supported in this browser",
+          `${permissionName} is not supported in this browser`,
           null,
           { permissionName }
         )
@@ -101,28 +143,67 @@ function usePermission(
       switch (permissionName) {
         case "geolocation":
           await new Promise<GeolocationPosition>((resolve, reject) => {
-            navigator.geolocation.getCurrentPosition(resolve, reject);
+            if ("geolocation" in navigator) {
+              const timeoutId = setTimeout(() => {
+                reject(new Error("Geolocation request timed out"));
+              }, 10000);
+
+              navigator.geolocation.getCurrentPosition(
+                (position) => {
+                  clearTimeout(timeoutId);
+                  resolve(position);
+                },
+                (error) => {
+                  clearTimeout(timeoutId);
+                  reject(error);
+                }
+              );
+            } else {
+              reject(new Error("Geolocation not supported"));
+            }
           });
           break;
         case "notifications":
-          await Notification.requestPermission();
+          if ("Notification" in window) {
+            await Notification.requestPermission();
+          } else {
+            throw new Error("Notifications not supported");
+          }
           break;
         case "microphone":
         case "camera":
-          await navigator.mediaDevices.getUserMedia({
-            audio: permissionName === "microphone",
-            video: permissionName === "camera",
-          });
+          if (
+            "mediaDevices" in navigator &&
+            "getUserMedia" in navigator.mediaDevices
+          ) {
+            await navigator.mediaDevices.getUserMedia({
+              audio: permissionName === "microphone",
+              video: permissionName === "camera",
+            });
+          } else {
+            throw new Error(`${permissionName} access not supported`);
+          }
           break;
         case "clipboard-read":
-          await navigator.clipboard.readText();
+          if ("clipboard" in navigator && "readText" in navigator.clipboard) {
+            await navigator.clipboard.readText();
+          } else {
+            throw new Error("Clipboard read not supported");
+          }
           break;
         case "clipboard-write":
-          await navigator.clipboard.writeText("Permission test");
+          if ("clipboard" in navigator && "writeText" in navigator.clipboard) {
+            await navigator.clipboard.writeText("Permission test");
+          } else {
+            throw new Error("Clipboard write not supported");
+          }
           break;
         // Other permissions may not have a direct way to request
         default:
           // Just query the current state
+          if (!isPermissionsSupported) {
+            throw new Error("Permissions API not supported");
+          }
           break;
       }
 
@@ -144,39 +225,66 @@ function usePermission(
       setState(currentState);
       return currentState;
     }
-  };
+  }, [
+    permissionName,
+    getPermissionState,
+    isFeatureSupported,
+    isPermissionsSupported,
+  ]);
 
   // Initial permission check and setup permission change listener
   useEffect(() => {
     let permissionStatus: PermissionStatus | null = null;
+    let isUnmounted = false;
 
     const checkPermission = async () => {
       try {
-        if (isPermissionSupported()) {
+        if (isPermissionsSupported && isFeatureSupported) {
           // Query the permission
           permissionStatus = await navigator.permissions.query({
             name: permissionName as any,
           });
 
+          // Don't update state if component unmounted
+          if (isUnmounted) return;
+
           // Update state based on current status
           setState(permissionStatus.state);
 
           // Listen for changes
-          permissionStatus.addEventListener("change", () => {
-            setState(permissionStatus!.state);
-          });
+          const handleChange = () => {
+            if (!isUnmounted && permissionStatus) {
+              setState(permissionStatus.state);
+            }
+          };
+
+          permissionStatus.addEventListener("change", handleChange);
+
+          // Cleanup listener
+          return () => {
+            if (permissionStatus) {
+              permissionStatus.removeEventListener("change", handleChange);
+            }
+          };
         } else {
-          setState("unsupported");
+          // For notifications, we can still access the permission state
+          if (permissionName === "notifications" && "Notification" in window) {
+            setState(Notification.permission as PermissionState);
+          } else {
+            setState("unsupported");
+          }
         }
       } catch (err) {
-        setState("unsupported");
-        setError(
-          new PermissionError(
-            `Error setting up permission listener: ${permissionName}`,
-            err,
-            { permissionName }
-          )
-        );
+        if (!isUnmounted) {
+          setState("unsupported");
+          setError(
+            new PermissionError(
+              `Error setting up permission listener: ${permissionName}`,
+              err,
+              { permissionName }
+            )
+          );
+        }
       }
     };
 
@@ -184,16 +292,9 @@ function usePermission(
 
     // Cleanup
     return () => {
-      if (permissionStatus) {
-        // TypeScript doesn't detect the addEventListener/removeEventListener correctly
-        // for PermissionStatus, so we need to cast
-        permissionStatus.removeEventListener("change", () => {
-          // This is just a placeholder since we can't reference the same function
-          // that we added in the addEventListener above
-        });
-      }
+      isUnmounted = true;
     };
-  }, [permissionName]);
+  }, [permissionName, isPermissionsSupported, isFeatureSupported]);
 
   return {
     state,

@@ -14,6 +14,7 @@ import {
   getSpeechGrammarList as getSpeechGrammarListAPI,
   isSpeechRecognitionSupported,
 } from "../utils/speech";
+import { features } from "../utils/browser";
 
 // Global SpeechRecognition type setup
 interface SpeechGrammar {
@@ -138,7 +139,7 @@ interface UseSpeechRecognitionResult {
  * @returns Whether speech recognition is supported
  */
 export function useSpeechSupport(): boolean {
-  return isSpeechRecognitionSupported();
+  return features.speechRecognition();
 }
 
 /**
@@ -153,8 +154,8 @@ export function useSpeechRecognitionBasic(
   const [listening, setListening] = useState(false);
   const [error, setError] = useState<SpeechRecognitionError | null>(null);
 
-  // Check if speech recognition is supported
-  const isSupported = isSpeechRecognitionSupported();
+  // Check if speech recognition is supported using the enhanced feature detection
+  const isSupported = features.speechRecognition();
 
   // Create a ref to hold the recognition instance
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
@@ -167,47 +168,62 @@ export function useSpeechRecognitionBasic(
     const SpeechRecognitionApi = getSpeechRecognitionAPI();
     if (!SpeechRecognitionApi) return;
 
-    // Create a new recognition instance
-    const recognition = new SpeechRecognitionApi();
+    try {
+      // Create a new recognition instance
+      const recognition = new SpeechRecognitionApi();
 
-    // Configure basic settings
-    recognition.continuous = false;
-    recognition.interimResults = false;
-    recognition.lang = lang;
-    recognition.maxAlternatives = 1;
+      // Configure basic settings
+      recognition.continuous = false;
+      recognition.interimResults = false;
+      recognition.lang = lang;
+      recognition.maxAlternatives = 1;
 
-    // Save the instance to the ref
-    recognitionRef.current = recognition;
+      // Save the instance to the ref
+      recognitionRef.current = recognition;
 
-    // Set up basic event handlers
-    recognition.onresult = (event: SpeechRecognitionEventType) => {
-      const transcript = event.results[0][0].transcript;
-      setTranscript(transcript);
-    };
+      // Set up basic event handlers
+      recognition.onresult = (event: SpeechRecognitionEventType) => {
+        const transcript = event.results[0][0].transcript;
+        setTranscript(transcript);
+      };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
-      const speechError = new SpeechRecognitionError(
-        `Speech recognition error: ${event.error}`,
-        event,
-        { errorCode: event.error === "aborted" ? 1 : 0 }
+      recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
+        const speechError = new SpeechRecognitionError(
+          `Speech recognition error: ${event.error}`,
+          event,
+          { errorCode: event.error === "aborted" ? 1 : 0 }
+        );
+        setError(speechError);
+        setListening(false);
+      };
+
+      recognition.onend = () => {
+        setListening(false);
+      };
+
+      recognition.onstart = () => {
+        setListening(true);
+        setError(null);
+      };
+    } catch (error) {
+      console.error("Error initializing speech recognition:", error);
+      setError(
+        new SpeechRecognitionError(
+          "Failed to initialize speech recognition",
+          error instanceof Error ? error : new Error(String(error)),
+          { errorCode: 0 }
+        )
       );
-      setError(speechError);
-      setListening(false);
-    };
-
-    recognition.onend = () => {
-      setListening(false);
-    };
-
-    recognition.onstart = () => {
-      setListening(true);
-      setError(null);
-    };
+    }
 
     // Cleanup on unmount
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          // Silently handle stop error during cleanup
+        }
         setListening(false);
       }
     };
@@ -231,6 +247,13 @@ export function useSpeechRecognitionBasic(
         setTranscript("");
         recognitionRef.current.start();
       } catch (err) {
+        // Common error: already started
+        if (err instanceof Error && err.message.includes("already started")) {
+          // Already started is actually fine, just update our state
+          setListening(true);
+          return;
+        }
+
         setError(
           new SpeechRecognitionError(
             "Failed to start speech recognition",
@@ -245,7 +268,24 @@ export function useSpeechRecognitionBasic(
   // Stop recognition
   const stop = useCallback(() => {
     if (recognitionRef.current && listening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        // Common error: already stopped
+        if (err instanceof Error && err.message.includes("not started")) {
+          // Already stopped is fine, just update our state
+          setListening(false);
+          return;
+        }
+
+        setError(
+          new SpeechRecognitionError(
+            "Failed to stop speech recognition",
+            err instanceof Error ? err : new Error(String(err)),
+            { errorCode: 0 }
+          )
+        );
+      }
     }
   }, [listening]);
 
@@ -284,7 +324,7 @@ function useSpeechRecognition({
   const [error, setError] = useState<SpeechRecognitionError | null>(null);
 
   // Check if speech recognition is supported
-  const isSupported = isSpeechRecognitionSupported();
+  const isSupported = features.speechRecognition();
 
   // Create a ref to hold the recognition instance
   const recognitionRef = useRef<SpeechRecognitionType | null>(null);
@@ -297,80 +337,117 @@ function useSpeechRecognition({
     const SpeechRecognitionApi = getSpeechRecognitionAPI();
     if (!SpeechRecognitionApi) return;
 
-    // Create a new recognition instance
-    const recognition = new SpeechRecognitionApi();
+    try {
+      // Create a new recognition instance
+      const recognition = new SpeechRecognitionApi();
 
-    // Configure settings
-    recognition.continuous = continuous;
-    recognition.interimResults = interimResults;
-    recognition.lang = lang;
-    recognition.maxAlternatives = maxAlternatives;
+      // Configure settings
+      recognition.continuous = continuous;
+      recognition.interimResults = interimResults;
+      recognition.lang = lang;
+      recognition.maxAlternatives = maxAlternatives;
 
-    // Add grammar if supported and provided
-    const SpeechGrammarListApi = getSpeechGrammarListAPI();
-    if (SpeechGrammarListApi && grammars.length > 0) {
-      const grammarList = new SpeechGrammarListApi();
-      grammars.forEach((grammar, index) => {
-        // Use number for weight
-        const weight = index + 1;
-        grammarList.addFromString(grammar, weight);
-      });
-      recognition.grammars = grammarList;
-    }
-
-    // Save the instance to the ref
-    recognitionRef.current = recognition;
-
-    // Set up event handlers
-    recognition.onresult = (event: SpeechRecognitionEventType) => {
-      let interim = "";
-      let final = "";
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          final += transcript;
-        } else {
-          interim += transcript;
+      // Add grammar if supported and provided
+      const SpeechGrammarListApi = getSpeechGrammarListAPI();
+      if (SpeechGrammarListApi && grammars.length > 0) {
+        try {
+          const grammarList = new SpeechGrammarListApi();
+          grammars.forEach((grammar, index) => {
+            // Use number for weight
+            const weight = index + 1;
+            grammarList.addFromString(grammar, weight);
+          });
+          recognition.grammars = grammarList;
+        } catch (error) {
+          console.warn("Failed to set up speech grammars:", error);
+          // Continue without grammars
         }
       }
 
-      setInterimTranscript(interim);
-      if (final !== "") {
-        setFinalTranscript((prev) => prev + final);
-      }
-      setTranscript(final + interim);
-    };
+      // Save the instance to the ref
+      recognitionRef.current = recognition;
 
-    recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
-      const speechError = new SpeechRecognitionError(
-        `Speech recognition error: ${event.error}`,
-        event,
-        { errorCode: event.error === "aborted" ? 1 : 0 }
-      );
-      setError(speechError);
-      setListening(false);
-    };
+      // Set up event handlers
+      recognition.onresult = (event: SpeechRecognitionEventType) => {
+        let interim = "";
+        let final = "";
 
-    recognition.onend = () => {
-      setListening(false);
+        for (let i = event.resultIndex; i < event.results.length; i++) {
+          const transcript = event.results[i][0].transcript;
+          if (event.results[i].isFinal) {
+            final += transcript;
+          } else {
+            interim += transcript;
+          }
+        }
 
-      // If continuous mode is enabled and no error occurred, restart
-      if (continuous && !error && recognitionRef.current) {
-        recognitionRef.current.start();
+        setInterimTranscript(interim);
+        if (final !== "") {
+          setFinalTranscript((prev) => prev + final);
+        }
+        setTranscript(final + interim);
+      };
+
+      recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
+        const speechError = new SpeechRecognitionError(
+          `Speech recognition error: ${event.error}`,
+          event,
+          { errorCode: event.error === "aborted" ? 1 : 0 }
+        );
+        setError(speechError);
+        setListening(false);
+
+        // For no-speech error, we might want to restart automatically if in continuous mode
+        if (continuous && event.error === "no-speech") {
+          setTimeout(() => {
+            try {
+              recognition.start();
+              setListening(true);
+            } catch (e) {
+              // Silent restart failure
+            }
+          }, 1000);
+        }
+      };
+
+      recognition.onend = () => {
+        setListening(false);
+
+        // If continuous mode is enabled and no error occurred, restart
+        if (continuous && !error && recognitionRef.current) {
+          try {
+            recognitionRef.current.start();
+            setListening(true);
+          } catch (e) {
+            // Restart silently failed, don't update error state
+            // This might happen if the session has already ended due to inactivity
+          }
+        }
+      };
+
+      recognition.onstart = () => {
         setListening(true);
-      }
-    };
-
-    recognition.onstart = () => {
-      setListening(true);
-      setError(null);
-    };
+        setError(null);
+      };
+    } catch (error) {
+      console.error("Error initializing speech recognition:", error);
+      setError(
+        new SpeechRecognitionError(
+          "Failed to initialize speech recognition",
+          error instanceof Error ? error : new Error(String(error)),
+          { errorCode: 0 }
+        )
+      );
+    }
 
     // Cleanup on unmount
     return () => {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch (error) {
+          // Silently handle stop error during cleanup
+        }
         setListening(false);
       }
     };
@@ -408,6 +485,13 @@ function useSpeechRecognition({
 
         recognitionRef.current.start();
       } catch (err) {
+        // Common error: already started
+        if (err instanceof Error && err.message.includes("already started")) {
+          // Already started is actually fine, just update our state
+          setListening(true);
+          return;
+        }
+
         setError(
           new SpeechRecognitionError(
             "Failed to start speech recognition",
@@ -422,7 +506,24 @@ function useSpeechRecognition({
   // Stop recognition
   const stop = useCallback(() => {
     if (recognitionRef.current && listening) {
-      recognitionRef.current.stop();
+      try {
+        recognitionRef.current.stop();
+      } catch (err) {
+        // Common error: already stopped
+        if (err instanceof Error && err.message.includes("not started")) {
+          // Already stopped is fine, just update our state
+          setListening(false);
+          return;
+        }
+
+        setError(
+          new SpeechRecognitionError(
+            "Failed to stop speech recognition",
+            err instanceof Error ? err : new Error(String(err)),
+            { errorCode: 0 }
+          )
+        );
+      }
     }
   }, [listening]);
 
