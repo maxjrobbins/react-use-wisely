@@ -23,3 +23,32 @@ export { default as usePermission } from "./hooks/usePermission";
 export { default as useSpeechRecognition } from "./hooks/useSpeechRecognition";
 export { default as useNetworkSpeed } from "./hooks/useNetworkSpeed";
 export { default as useErrorBoundary } from "./hooks/useErrorBoundary";
+
+export type {
+  // Browser types
+  ConnectionInfo,
+  PermissionInfo,
+  ConnectionType,
+  ConnectionEffectiveType,
+  PermissionName,
+
+  // DOM types
+  ScrollPosition,
+  WindowSize,
+  IntersectionOptions,
+  ResizeObserverOptions,
+
+  // Utility types
+  StorageResult,
+  ErrorBoundaryState,
+  MapActions,
+  SetActions,
+
+  // Async types
+  AsyncResult,
+  FetchOptions,
+  FormOptions,
+  FormErrors,
+  FormTouched,
+  Status,
+} from "./categories";

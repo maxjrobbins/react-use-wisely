@@ -1,23 +1,10 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { NetworkSpeedError } from "./errors";
-
-// Connection types
-type ConnectionType =
-  | "bluetooth"
-  | "cellular"
-  | "ethernet"
-  | "mixed"
-  | "none"
-  | "other"
-  | "unknown"
-  | "wifi"
-  | "wimax";
-
-// Connection effective types
-type ConnectionEffectiveType = "slow-2g" | "2g" | "3g" | "4g";
+import { isBrowser, isApiSupported } from "../utils/browser";
+import { ConnectionType, ConnectionEffectiveType } from "../utils/types";
 
 // Connection Speed
-interface ConnectionSpeed {
+export interface ConnectionSpeed {
   downlink: number | null; // Downlink speed in Mbps
   rtt: number | null; // Round-trip time in ms
   effectiveType: ConnectionEffectiveType | null;
@@ -29,14 +16,14 @@ interface ConnectionSpeed {
   uploadSpeed: number | null; // in Mbps
 }
 
-interface SpeedTestOptions {
+export interface SpeedTestOptions {
   testUrl?: string; // URL to fetch for testing
   downloadSize?: number; // Size of file to download in bytes
   uploadData?: string; // Data to upload for test
   timeout?: number; // Timeout for test in ms
 }
 
-interface UseNetworkSpeedOptions {
+export interface UseNetworkSpeedOptions {
   pollingInterval?: number; // Interval to poll navigator.connection
   speedTestInterval?: number; // Interval for active speed tests
   onConnectionChange?: (speed: ConnectionSpeed) => void;
@@ -45,9 +32,192 @@ interface UseNetworkSpeedOptions {
 }
 
 /**
+ * Default initial state for network speed tracking
+ */
+const initialNetworkState: ConnectionSpeed = {
+  downlink: null,
+  rtt: null,
+  effectiveType: null,
+  saveData: null,
+  type: null,
+  lastTested: null,
+  downloadSpeed: null,
+  uploadSpeed: null,
+};
+
+/**
+ * Check if Navigator Connection API is supported
+ * @returns Whether the Connection API is supported
+ */
+export const hasConnectionApi = (): boolean => {
+  return isApiSupported("connection");
+};
+
+/**
+ * Get current connection info from Navigator API
+ * @returns Connection information
+ */
+export const getConnectionInfo = (): Partial<ConnectionSpeed> => {
+  if (!hasConnectionApi()) {
+    return {};
+  }
+
+  const connection = (navigator as any).connection;
+
+  return {
+    downlink: connection.downlink || null,
+    rtt: connection.rtt || null,
+    effectiveType:
+      (connection.effectiveType as ConnectionEffectiveType) || null,
+    saveData: connection.saveData || null,
+    type: (connection.type as ConnectionType) || null,
+  };
+};
+
+/**
+ * Measure download speed
+ * @param options - Speed test options
+ * @returns Download speed in Mbps
+ */
+export const measureDownloadSpeed = async (
+  options: SpeedTestOptions = {}
+): Promise<number> => {
+  const {
+    testUrl = "https://speed.cloudflare.com/__down?bytes=1048576", // 1MB file
+    timeout = 10000, // 10 seconds
+  } = options;
+
+  try {
+    // Record start time
+    const startTime = Date.now();
+
+    // Fetch the file
+    const response = await fetch(testUrl, {
+      method: "GET",
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to fetch test file: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Get the response as an array buffer
+    const data = await response.arrayBuffer();
+
+    // Calculate time taken in seconds
+    const endTime = Date.now();
+    const durationInSeconds = (endTime - startTime) / 1000;
+
+    // Calculate speed in Mbps (megabits per second)
+    // 8 bits in a byte, 1 million bits in a megabit
+    const fileSizeInMb = (data.byteLength * 8) / 1000000;
+    const speedMbps = fileSizeInMb / durationInSeconds;
+
+    return speedMbps;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Measure upload speed
+ * @param options - Speed test options
+ * @returns Upload speed in Mbps
+ */
+export const measureUploadSpeed = async (
+  options: SpeedTestOptions = {}
+): Promise<number> => {
+  const {
+    testUrl = "https://speed.cloudflare.com/__up",
+    uploadData = new Array(1048576).fill("X").join(""), // 1MB of data
+    timeout = 10000, // 10 seconds
+  } = options;
+
+  try {
+    // Record start time
+    const startTime = Date.now();
+
+    // Upload the data
+    const response = await fetch(testUrl, {
+      method: "POST",
+      body: uploadData,
+      cache: "no-store",
+      signal: AbortSignal.timeout(timeout),
+    });
+
+    if (!response.ok) {
+      throw new Error(
+        `Failed to upload test data: ${response.status} ${response.statusText}`
+      );
+    }
+
+    // Calculate time taken in seconds
+    const endTime = Date.now();
+    const durationInSeconds = (endTime - startTime) / 1000;
+
+    // Calculate speed in Mbps (megabits per second)
+    const dataSizeInMb = (uploadData.length * 2 * 8) / 1000000; // Unicode chars are 2 bytes
+    const speedMbps = dataSizeInMb / durationInSeconds;
+
+    return speedMbps;
+  } catch (err) {
+    throw err;
+  }
+};
+
+/**
+ * Base hook for detecting basic network information (no speed tests)
+ * @returns Connection information
+ */
+export function useNetworkInfo(): Partial<ConnectionSpeed> {
+  const [connectionInfo, setConnectionInfo] = useState<
+    Partial<ConnectionSpeed>
+  >(isBrowser ? getConnectionInfo() : {});
+
+  // Reference to connection object to prevent multiple instances
+  const connectionRef = useRef<any>(null);
+
+  useEffect(() => {
+    if (!isBrowser) return;
+
+    // Store reference to connection object
+    if (hasConnectionApi()) {
+      connectionRef.current = (navigator as any).connection;
+    }
+
+    const updateConnectionInfo = () => {
+      setConnectionInfo(getConnectionInfo());
+    };
+
+    // Initial update
+    updateConnectionInfo();
+
+    // Set up event listener for connection changes
+    if (hasConnectionApi() && connectionRef.current) {
+      connectionRef.current.addEventListener("change", updateConnectionInfo);
+    }
+
+    // Cleanup on unmount
+    return () => {
+      if (hasConnectionApi() && connectionRef.current) {
+        connectionRef.current.removeEventListener(
+          "change",
+          updateConnectionInfo
+        );
+      }
+    };
+  }, []);
+
+  return connectionInfo;
+}
+
+/**
  * Hook for detecting network speed and connection information
- * @param {UseNetworkSpeedOptions} options - Configuration options
- * @returns {[ConnectionSpeed, () => Promise<void>, boolean, NetworkSpeedError | null]} Network speed info, test function, loading state, and error
+ * @param options - Configuration options
+ * @returns Network speed info, test function, loading state, and error
  */
 function useNetworkSpeed({
   pollingInterval = 5000,
@@ -61,138 +231,17 @@ function useNetworkSpeed({
   boolean,
   NetworkSpeedError | null
 ] {
-  // Default initial state
-  const initialState: ConnectionSpeed = {
-    downlink: null,
-    rtt: null,
-    effectiveType: null,
-    saveData: null,
-    type: null,
-    lastTested: null,
-    downloadSpeed: null,
-    uploadSpeed: null,
-  };
+  // Get basic connection info
+  const connectionInfo = useNetworkInfo();
 
-  // State
-  const [connectionSpeed, setConnectionSpeed] =
-    useState<ConnectionSpeed>(initialState);
+  // State for full connection speed data
+  const [connectionSpeed, setConnectionSpeed] = useState<ConnectionSpeed>({
+    ...initialNetworkState,
+    ...connectionInfo,
+  });
+
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<NetworkSpeedError | null>(null);
-
-  // Reference to connection object to prevent multiple instances
-  const connectionRef = useRef<any>(null);
-
-  // Check if Navigator Connection API is supported
-  const hasConnectionApi = useCallback((): boolean => {
-    return (
-      typeof navigator !== "undefined" &&
-      "connection" in navigator &&
-      navigator.connection !== undefined
-    );
-  }, []);
-
-  // Get current connection info from Navigator API
-  const getConnectionInfo = useCallback((): Partial<ConnectionSpeed> => {
-    if (!hasConnectionApi()) {
-      return {};
-    }
-
-    // Store reference to connection object
-    connectionRef.current = (navigator as any).connection;
-
-    const connection = connectionRef.current;
-
-    return {
-      downlink: connection.downlink || null,
-      rtt: connection.rtt || null,
-      effectiveType:
-        (connection.effectiveType as ConnectionEffectiveType) || null,
-      saveData: connection.saveData || null,
-      type: (connection.type as ConnectionType) || null,
-    };
-  }, [hasConnectionApi]);
-
-  // Measure download speed
-  const measureDownloadSpeed = useCallback(async (): Promise<number> => {
-    const {
-      testUrl = "https://speed.cloudflare.com/__down?bytes=1048576", // 1MB file
-      timeout = 10000, // 10 seconds
-    } = speedTestOptions;
-
-    try {
-      // Record start time
-      const startTime = Date.now();
-
-      // Fetch the file
-      const response = await fetch(testUrl, {
-        method: "GET",
-        cache: "no-store",
-        signal: AbortSignal.timeout(timeout),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to fetch test file: ${response.status} ${response.statusText}`
-        );
-      }
-
-      // Get the response as an array buffer
-      const data = await response.arrayBuffer();
-
-      // Calculate time taken in seconds
-      const endTime = Date.now();
-      const durationInSeconds = (endTime - startTime) / 1000;
-
-      // Calculate speed in Mbps (megabits per second)
-      // 8 bits in a byte, 1 million bits in a megabit
-      const fileSizeInMb = (data.byteLength * 8) / 1000000;
-      const speedMbps = fileSizeInMb / durationInSeconds;
-
-      return speedMbps;
-    } catch (err) {
-      throw err;
-    }
-  }, [speedTestOptions]);
-
-  // Measure upload speed
-  const measureUploadSpeed = useCallback(async (): Promise<number> => {
-    const {
-      testUrl = "https://speed.cloudflare.com/__up",
-      uploadData = new Array(1048576).fill("X").join(""), // 1MB of data
-      timeout = 10000, // 10 seconds
-    } = speedTestOptions;
-
-    try {
-      // Record start time
-      const startTime = Date.now();
-
-      // Upload the data
-      const response = await fetch(testUrl, {
-        method: "POST",
-        body: uploadData,
-        cache: "no-store",
-        signal: AbortSignal.timeout(timeout),
-      });
-
-      if (!response.ok) {
-        throw new Error(
-          `Failed to upload test data: ${response.status} ${response.statusText}`
-        );
-      }
-
-      // Calculate time taken in seconds
-      const endTime = Date.now();
-      const durationInSeconds = (endTime - startTime) / 1000;
-
-      // Calculate speed in Mbps (megabits per second)
-      const dataSizeInMb = (uploadData.length * 2 * 8) / 1000000; // Unicode chars are 2 bytes
-      const speedMbps = dataSizeInMb / durationInSeconds;
-
-      return speedMbps;
-    } catch (err) {
-      throw err;
-    }
-  }, [speedTestOptions]);
 
   // Run a complete network speed test
   const runSpeedTest = useCallback(async (): Promise<void> => {
@@ -200,29 +249,29 @@ function useNetworkSpeed({
     setError(null);
 
     try {
-      // Get basic connection info first
-      const connectionInfo = getConnectionInfo();
+      // Get latest basic connection info
+      const latestConnectionInfo = getConnectionInfo();
 
       // Run speed tests
       let downloadSpeed = null;
       let uploadSpeed = null;
 
       try {
-        downloadSpeed = await measureDownloadSpeed();
+        downloadSpeed = await measureDownloadSpeed(speedTestOptions);
       } catch (err) {
         console.warn("Download speed test failed:", err);
       }
 
       try {
-        uploadSpeed = await measureUploadSpeed();
+        uploadSpeed = await measureUploadSpeed(speedTestOptions);
       } catch (err) {
         console.warn("Upload speed test failed:", err);
       }
 
       // Update the connection speed state
       const newConnectionSpeed: ConnectionSpeed = {
-        ...initialState,
-        ...connectionInfo,
+        ...initialNetworkState,
+        ...latestConnectionInfo,
         downloadSpeed,
         uploadSpeed,
         lastTested: Date.now(),
@@ -239,37 +288,18 @@ function useNetworkSpeed({
     } finally {
       setLoading(false);
     }
-  }, [
-    getConnectionInfo,
-    measureDownloadSpeed,
-    measureUploadSpeed,
-    onConnectionChange,
-    initialState,
-  ]);
+  }, [speedTestOptions, onConnectionChange]);
 
-  // Update connection info without running speed test
-  const updateConnectionInfo = useCallback(() => {
-    const connectionInfo = getConnectionInfo();
-
+  // Update connection info with latest basic info
+  useEffect(() => {
     setConnectionSpeed((prev) => ({
       ...prev,
       ...connectionInfo,
     }));
+  }, [connectionInfo]);
 
-    // Call the callback if provided
-    if (onConnectionChange) {
-      onConnectionChange({
-        ...connectionSpeed,
-        ...connectionInfo,
-      });
-    }
-  }, [getConnectionInfo, onConnectionChange, connectionSpeed]);
-
-  // Set up connection monitoring
+  // Set up polling for connection info and automatic speed tests
   useEffect(() => {
-    // Initial update on mount
-    updateConnectionInfo();
-
     // Run speed test on load if enabled
     if (testOnLoad) {
       runSpeedTest().catch((err) => {
@@ -279,7 +309,20 @@ function useNetworkSpeed({
 
     // Set up polling interval for connection info
     const pollingTimer = setInterval(() => {
-      updateConnectionInfo();
+      const updatedInfo = getConnectionInfo();
+
+      setConnectionSpeed((prev) => ({
+        ...prev,
+        ...updatedInfo,
+      }));
+
+      // Call the callback if provided
+      if (onConnectionChange) {
+        onConnectionChange({
+          ...connectionSpeed,
+          ...updatedInfo,
+        });
+      }
     }, pollingInterval);
 
     // Set up automatic speed tests if interval is provided
@@ -292,32 +335,20 @@ function useNetworkSpeed({
       }, speedTestInterval);
     }
 
-    // Set up event listener for connection changes
-    if (hasConnectionApi() && connectionRef.current) {
-      connectionRef.current.addEventListener("change", updateConnectionInfo);
-    }
-
     // Cleanup on unmount
     return () => {
       clearInterval(pollingTimer);
       if (speedTestTimer) {
         clearInterval(speedTestTimer);
       }
-
-      if (hasConnectionApi() && connectionRef.current) {
-        connectionRef.current.removeEventListener(
-          "change",
-          updateConnectionInfo
-        );
-      }
     };
   }, [
-    updateConnectionInfo,
     pollingInterval,
     speedTestInterval,
     runSpeedTest,
-    hasConnectionApi,
     testOnLoad,
+    onConnectionChange,
+    connectionSpeed,
   ]);
 
   return [connectionSpeed, runSpeedTest, loading, error];

@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { SpeechRecognitionError } from "./errors";
+import type {
+  SpeechRecognition as SpeechRecognitionType,
+  SpeechGrammarList as SpeechGrammarListType,
+  SpeechRecognitionEvent as SpeechRecognitionEventType,
+  SpeechRecognitionErrorEvent as SpeechRecognitionErrorEventType,
+  SpeechRecognitionOptions,
+  SpeechRecognitionHookResult,
+  SpeechRecognitionConstructor as SpeechRecognitionConstructorType,
+} from "../types/speech";
+import {
+  getSpeechRecognition as getSpeechRecognitionAPI,
+  getSpeechGrammarList as getSpeechGrammarListAPI,
+  isSpeechRecognitionSupported,
+} from "../utils/speech";
 
 // Global SpeechRecognition type setup
 interface SpeechGrammar {
@@ -119,9 +133,142 @@ interface UseSpeechRecognitionResult {
 }
 
 /**
- * Hook for using speech recognition capabilities
- * @param {UseSpeechRecognitionOptions} options - Configuration options
- * @returns {UseSpeechRecognitionResult} Speech recognition state and controls
+ * Simplified hook that just checks if speech recognition is supported.
+ * Useful to conditionally render speech components.
+ * @returns Whether speech recognition is supported
+ */
+export function useSpeechSupport(): boolean {
+  return isSpeechRecognitionSupported();
+}
+
+/**
+ * Core hook for basic speech recognition without complex configuration
+ * @param lang - Language to use for recognition
+ * @returns Speech recognition state and controls
+ */
+export function useSpeechRecognitionBasic(
+  lang: string = "en-US"
+): Omit<SpeechRecognitionHookResult, "interimTranscript" | "finalTranscript"> {
+  const [transcript, setTranscript] = useState("");
+  const [listening, setListening] = useState(false);
+  const [error, setError] = useState<SpeechRecognitionError | null>(null);
+
+  // Check if speech recognition is supported
+  const isSupported = isSpeechRecognitionSupported();
+
+  // Create a ref to hold the recognition instance
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
+
+  // Initialize recognition on mount
+  useEffect(() => {
+    if (!isSupported) return;
+
+    // Get the speech recognition constructor
+    const SpeechRecognitionApi = getSpeechRecognitionAPI();
+    if (!SpeechRecognitionApi) return;
+
+    // Create a new recognition instance
+    const recognition = new SpeechRecognitionApi();
+
+    // Configure basic settings
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = lang;
+    recognition.maxAlternatives = 1;
+
+    // Save the instance to the ref
+    recognitionRef.current = recognition;
+
+    // Set up basic event handlers
+    recognition.onresult = (event: SpeechRecognitionEventType) => {
+      const transcript = event.results[0][0].transcript;
+      setTranscript(transcript);
+    };
+
+    recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
+      const speechError = new SpeechRecognitionError(
+        `Speech recognition error: ${event.error}`,
+        event,
+        { errorCode: event.error === "aborted" ? 1 : 0 }
+      );
+      setError(speechError);
+      setListening(false);
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+    };
+
+    recognition.onstart = () => {
+      setListening(true);
+      setError(null);
+    };
+
+    // Cleanup on unmount
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+        setListening(false);
+      }
+    };
+  }, [lang, isSupported]);
+
+  // Start recognition
+  const start = useCallback(() => {
+    if (!isSupported) {
+      setError(
+        new SpeechRecognitionError(
+          "Speech recognition is not supported in this browser",
+          null,
+          { errorCode: 0 }
+        )
+      );
+      return;
+    }
+
+    if (recognitionRef.current && !listening) {
+      try {
+        setTranscript("");
+        recognitionRef.current.start();
+      } catch (err) {
+        setError(
+          new SpeechRecognitionError(
+            "Failed to start speech recognition",
+            err instanceof Error ? err : new Error(String(err)),
+            { errorCode: 0 }
+          )
+        );
+      }
+    }
+  }, [isSupported, listening]);
+
+  // Stop recognition
+  const stop = useCallback(() => {
+    if (recognitionRef.current && listening) {
+      recognitionRef.current.stop();
+    }
+  }, [listening]);
+
+  // Reset transcript
+  const reset = useCallback(() => {
+    setTranscript("");
+  }, []);
+
+  return {
+    transcript,
+    listening,
+    error,
+    isSupported,
+    start,
+    stop,
+    reset,
+  };
+}
+
+/**
+ * Full hook for advanced speech recognition with all features
+ * @param options - Configuration options
+ * @returns Speech recognition state and controls
  */
 function useSpeechRecognition({
   continuous = false,
@@ -129,7 +276,7 @@ function useSpeechRecognition({
   lang = "en-US",
   maxAlternatives = 1,
   grammars = [],
-}: UseSpeechRecognitionOptions = {}): UseSpeechRecognitionResult {
+}: SpeechRecognitionOptions = {}): SpeechRecognitionHookResult {
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [finalTranscript, setFinalTranscript] = useState("");
@@ -137,20 +284,21 @@ function useSpeechRecognition({
   const [error, setError] = useState<SpeechRecognitionError | null>(null);
 
   // Check if speech recognition is supported
-  const SpeechRecognition = getSpeechRecognition();
-  const isSupported = SpeechRecognition !== null;
+  const isSupported = isSpeechRecognitionSupported();
 
   // Create a ref to hold the recognition instance
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionType | null>(null);
 
   // Initialize recognition on mount
   useEffect(() => {
-    if (!isSupported) {
-      return;
-    }
+    if (!isSupported) return;
+
+    // Get the speech recognition constructor
+    const SpeechRecognitionApi = getSpeechRecognitionAPI();
+    if (!SpeechRecognitionApi) return;
 
     // Create a new recognition instance
-    const recognition = new SpeechRecognition();
+    const recognition = new SpeechRecognitionApi();
 
     // Configure settings
     recognition.continuous = continuous;
@@ -159,9 +307,9 @@ function useSpeechRecognition({
     recognition.maxAlternatives = maxAlternatives;
 
     // Add grammar if supported and provided
-    const SpeechGrammarList = getSpeechGrammarList();
-    if (SpeechGrammarList && grammars.length > 0) {
-      const grammarList = new SpeechGrammarList();
+    const SpeechGrammarListApi = getSpeechGrammarListAPI();
+    if (SpeechGrammarListApi && grammars.length > 0) {
+      const grammarList = new SpeechGrammarListApi();
       grammars.forEach((grammar, index) => {
         // Use number for weight
         const weight = index + 1;
@@ -174,7 +322,7 @@ function useSpeechRecognition({
     recognitionRef.current = recognition;
 
     // Set up event handlers
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
+    recognition.onresult = (event: SpeechRecognitionEventType) => {
       let interim = "";
       let final = "";
 
@@ -194,7 +342,7 @@ function useSpeechRecognition({
       setTranscript(final + interim);
     };
 
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
+    recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
       const speechError = new SpeechRecognitionError(
         `Speech recognition error: ${event.error}`,
         event,
@@ -263,7 +411,7 @@ function useSpeechRecognition({
         setError(
           new SpeechRecognitionError(
             "Failed to start speech recognition",
-            err,
+            err instanceof Error ? err : new Error(String(err)),
             { errorCode: 0 }
           )
         );
