@@ -118,7 +118,7 @@ describe("useAsync", () => {
     });
 
     await act(async () => {
-      renderHook(() => useAsync(immediateFunction, true));
+      renderHook(() => useAsync(immediateFunction, { immediate: true }));
       // Wait a bit for the effect to run
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
@@ -133,7 +133,7 @@ describe("useAsync", () => {
 
     // Set up error function that will be called immediately
     await act(async () => {
-      renderHook(() => useAsync(mockErrorFunction, true));
+      renderHook(() => useAsync(mockErrorFunction, { immediate: true }));
       // Wait a bit for the effect to run
       await new Promise((resolve) => setTimeout(resolve, 10));
     });
@@ -146,7 +146,7 @@ describe("useAsync", () => {
   });
 
   it("does not execute immediately when immediate is false", () => {
-    renderHook(() => useAsync(mockSuccessFunction, false));
+    renderHook(() => useAsync(mockSuccessFunction, { immediate: false }));
 
     // Verify the function was not called
     expect(mockSuccessFunction).not.toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe("useAsync", () => {
 
     // Using a short retry delay for quicker tests
     const { result, rerender } = renderHook(() =>
-      useAsync(mockFn, false, 2, 50)
+      useAsync(mockFn, { retryCount: 2, retryDelay: 50 })
     );
 
     // Execute first (will fail)
@@ -240,7 +240,7 @@ describe("useAsync", () => {
 
     // Using a short retry delay for quicker tests
     const { result, rerender } = renderHook(() =>
-      useAsync(mockFn, false, 2, 50)
+      useAsync(mockFn, { retryCount: 2, retryDelay: 50 })
     );
 
     // Execute (will fail)

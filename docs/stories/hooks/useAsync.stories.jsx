@@ -180,7 +180,7 @@ export const Default = () => {
   const { execute, reset, status, value, error, isRetrying, attemptCount } =
     useAsync(
       () => fetchUserData(userId, shouldFail),
-      false // don't run immediately
+      { immediate: false } // don't run immediately
     );
 
   return (
@@ -366,12 +366,11 @@ export const WithRetry = () => {
   const [retryDelay, setRetryDelay] = useState(1000);
 
   const { execute, reset, status, value, error, isRetrying, attemptCount } =
-    useAsync(
-      () => fetchUserData(userId, shouldFail),
-      false, // don't run immediately
+    useAsync(() => fetchUserData(userId, shouldFail), {
+      immediate: false, // don't run immediately
       retryCount,
-      retryDelay
-    );
+      retryDelay,
+    });
 
   return (
     <div

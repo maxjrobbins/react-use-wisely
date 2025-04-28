@@ -3,33 +3,46 @@ import { AsyncError } from "./errors";
 import { safeStringify } from "../utils/helpers";
 
 /**
- * Hook for managing async operations
- * @template T The type of the value returned by the async function
- * @template P The type of parameters for the async function
- * @param {(...params: P) => Promise<T>} asyncFunction - The async function to execute
- * @param {boolean} immediate - Whether to execute the function immediately
- * @param {number} retryCount - Number of retry attempts (default: 0)
- * @param {number} retryDelay - Delay between retries in ms (default: 1000)
- * @returns {Object} - Status and control functions for the async operation
+ * Options for the useAsync hook
  */
+export interface AsyncOptions {
+  immediate?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+}
 
-interface AsyncHookResult<T, P extends unknown[]> {
+/**
+ * Hook result for async operations
+ */
+export interface AsyncResult<T, P extends unknown[]> {
+  // Methods
   execute: (...params: P) => Promise<T>;
   reset: () => void;
-  status: "idle" | "pending" | "success" | "error" | "retrying";
+  // State
   value: T | null;
+  status: "idle" | "pending" | "success" | "error" | "retrying";
+  // Error handling
   error: AsyncError | null;
+  // Status indicators
   isLoading: boolean;
   isRetrying: boolean;
   attemptCount: number;
 }
 
+/**
+ * Hook for managing async operations
+ * @template T The type of the value returned by the async function
+ * @template P The type of parameters for the async function
+ * @param {(...params: P) => Promise<T>} asyncFunction - The async function to execute
+ * @param {AsyncOptions} options - Configuration options
+ * @returns {AsyncResult<T, P>} - Status and control functions for the async operation
+ */
 const useAsync = <T, P extends unknown[] = unknown[]>(
   asyncFunction: (...params: P) => Promise<T>,
-  immediate: boolean = false,
-  retryCount: number = 0,
-  retryDelay: number = 1000
-): AsyncHookResult<T, P> => {
+  options: AsyncOptions = {}
+): AsyncResult<T, P> => {
+  const { immediate = false, retryCount = 0, retryDelay = 1000 } = options;
+
   type StatusType = "idle" | "pending" | "success" | "error" | "retrying";
 
   const [status, setStatus] = useState<StatusType>("idle");
@@ -64,8 +77,6 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
             error,
             { params: safeParams, attempt: currentAttempt }
           );
-
-          console.log("asyncError", asyncError, currentAttempt, retryCount);
 
           // Check if we should retry
           if (currentAttempt < retryCount) {

@@ -7,15 +7,15 @@ jest.useFakeTimers();
 
 interface TestComponentProps {
   initialValue: string;
-  delay: number;
+  delay?: number;
 }
 
 function TestComponent({
   initialValue,
-  delay,
+  delay = 500,
 }: TestComponentProps): ReactElement {
   const [value, setValue] = useState<string>(initialValue);
-  const debouncedValue = useDebounce<string>(value, delay);
+  const { value: debouncedValue } = useDebounce<string>(value, { delay });
 
   return (
     <div>
@@ -30,7 +30,7 @@ function TestComponent({
 
 describe("useDebounce", () => {
   test("should initially return the provided value", () => {
-    render(<TestComponent initialValue="initial value" delay={500} />);
+    render(<TestComponent initialValue="initial value" />);
 
     expect(screen.getByTestId("debounced-value").textContent).toBe(
       "initial value"
@@ -56,6 +56,35 @@ describe("useDebounce", () => {
     );
 
     // Fast-forward time by 500ms
+    act(() => {
+      jest.advanceTimersByTime(500);
+    });
+
+    // Now the debounced value should be updated
+    expect(screen.getByTestId("debounced-value").textContent).toBe(
+      "updated value"
+    );
+  });
+
+  test("should use default delay when not specified", () => {
+    render(<TestComponent initialValue="initial value" />);
+
+    // Update the value
+    act(() => {
+      screen.getByTestId("button").click();
+    });
+
+    // Value should be updated immediately
+    expect(screen.getByTestId("current-value").textContent).toBe(
+      "updated value"
+    );
+
+    // But debounced value should not change yet
+    expect(screen.getByTestId("debounced-value").textContent).toBe(
+      "initial value"
+    );
+
+    // Fast-forward time by default delay (500ms)
     act(() => {
       jest.advanceTimersByTime(500);
     });

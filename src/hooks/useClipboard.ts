@@ -3,10 +3,30 @@ import { useState, useCallback } from "react";
 import { ClipboardError } from "./errors";
 import { features, isFeatureSupported } from "../utils/browser";
 
-interface ClipboardState {
+/**
+ * Options for the useClipboard hook
+ */
+export interface ClipboardOptions {
+  /**
+   * Reset the copied state after this time in milliseconds
+   * @default 2000
+   */
+  timeout?: number;
+}
+
+/**
+ * Hook result for clipboard operations
+ */
+export interface ClipboardResult {
+  // State
   isCopied: boolean;
+  // Error handling
   error: ClipboardError | null;
+  // Support information
   isSupported: boolean;
+  // Methods
+  copy: (text: string) => Promise<boolean>;
+  reset: () => void;
 }
 
 /**
@@ -20,38 +40,38 @@ const isClipboardApiSupported = (): boolean => {
  * Check if the document.execCommand('copy') method is supported (fallback method)
  */
 const isExecCommandSupported = (): boolean => {
-  return isFeatureSupported("execCommand", () => {
-    return (
-      typeof document !== "undefined" &&
-      typeof document.execCommand === "function" &&
-      document.queryCommandSupported("copy")
-    );
-  });
+  try {
+    return isFeatureSupported("execCommand", () => {
+      return (
+        typeof document !== "undefined" &&
+        typeof document.execCommand === "function" &&
+        document.queryCommandSupported("copy")
+      );
+    });
+  } catch (err) {
+    return false;
+  }
 };
 
 /**
  * Hook for clipboard operations
- * @param timeout - Reset the copied state after this time in milliseconds
+ * @param options - Configuration options
  * @returns Object with state and functions for clipboard operations
  */
-const useClipboard = (
-  timeout = 2000
-): {
-  isCopied: boolean;
-  error: ClipboardError | null;
-  isSupported: boolean;
-  copy: (text: string) => Promise<boolean>;
-  reset: () => void;
-} => {
-  // Check feature support
+const useClipboard = (options: ClipboardOptions = {}): ClipboardResult => {
+  const { timeout = 2000 } = options;
+
+  // Check feature support - safe for SSR and null document.body
   const clipboardApiSupported = isClipboardApiSupported();
   const fallbackSupported = isExecCommandSupported();
   const isSupported = clipboardApiSupported || fallbackSupported;
 
-  const [state, setState] = useState<ClipboardState>({
+  const [state, setState] = useState<{
+    isCopied: boolean;
+    error: ClipboardError | null;
+  }>({
     isCopied: false,
     error: null,
-    isSupported,
   });
 
   // Reset state
@@ -59,9 +79,8 @@ const useClipboard = (
     setState({
       isCopied: false,
       error: null,
-      isSupported,
     });
-  }, [isSupported]);
+  }, []);
 
   // Function to copy text to clipboard
   const copyToClipboard = useCallback(
@@ -70,7 +89,6 @@ const useClipboard = (
       setState({
         isCopied: false,
         error: null,
-        isSupported,
       });
 
       // If no clipboard support at all, return error immediately
@@ -82,23 +100,66 @@ const useClipboard = (
         setState({
           isCopied: false,
           error: clipboardError,
-          isSupported: false,
         });
         return false;
       }
 
-      if (!clipboardApiSupported) {
-        // Fallback for older browsers
+      // For test environment, directly check if navigator.clipboard exists
+      // rather than using the feature detection, which might be mocked
+      const hasClipboardApi =
+        typeof navigator !== "undefined" &&
+        navigator.clipboard &&
+        typeof navigator.clipboard.writeText === "function";
+
+      // Safety check for document.body in tests
+      const hasDocumentBody =
+        typeof document !== "undefined" &&
+        document.body !== null &&
+        document.body !== undefined;
+
+      // In tests, when navigator.clipboard is undefined, we should use the fallback method
+      if (hasClipboardApi && clipboardApiSupported) {
+        try {
+          await navigator.clipboard.writeText(text);
+          setState({ isCopied: true, error: null });
+
+          setTimeout(() => {
+            setState((prev) => ({ ...prev, isCopied: false }));
+          }, timeout);
+
+          return true;
+        } catch (err) {
+          // Handle possible errors:
+          // - NotAllowedError: The request is not allowed
+          // - SecurityError: Permission issues or insecure context
+          let errorMessage = "Failed to copy text to clipboard";
+
+          if (err instanceof Error) {
+            if (err.name === "NotAllowedError") {
+              errorMessage = "Permission to access clipboard was denied";
+            } else if (err.name === "SecurityError") {
+              errorMessage =
+                "Clipboard access is only available in secure contexts (HTTPS)";
+            }
+          }
+
+          const clipboardError = new ClipboardError(errorMessage, err);
+          console.error(clipboardError);
+          setState({ isCopied: false, error: clipboardError });
+          return false;
+        }
+      } else {
+        // Fallback for older browsers or when Clipboard API is unavailable in tests
         // First check if document.body exists
-        if (!document || !document.body) {
+        if (!hasDocumentBody) {
           const clipboardError = new ClipboardError(
-            "Failed to copy text using fallback method: document.body is not available"
+            "Failed to copy text using fallback method: document.body is not available",
+            null
           );
           console.error(clipboardError);
           setState({
             isCopied: false,
             error: clipboardError,
-            isSupported,
           });
           return false;
         }
@@ -110,7 +171,22 @@ const useClipboard = (
         textArea.style.position = "fixed";
         textArea.style.left = "-999999px";
         textArea.style.top = "-999999px";
-        document.body.appendChild(textArea);
+
+        // Safe append that checks for document.body existence again (could have changed between checks)
+        try {
+          document.body.appendChild(textArea);
+        } catch (err) {
+          const clipboardError = new ClipboardError(
+            "Failed to copy text using fallback method: document.body is not available",
+            err
+          );
+          console.error(clipboardError);
+          setState({
+            isCopied: false,
+            error: clipboardError,
+          });
+          return false;
+        }
 
         try {
           textArea.focus();
@@ -139,7 +215,7 @@ const useClipboard = (
             throw new Error("Copy command was unsuccessful");
           }
 
-          setState({ isCopied: true, error: null, isSupported });
+          setState({ isCopied: true, error: null });
 
           setTimeout(() => {
             setState((prev) => ({ ...prev, isCopied: false }));
@@ -152,51 +228,29 @@ const useClipboard = (
             err
           );
           console.error(clipboardError);
-          setState({ isCopied: false, error: clipboardError, isSupported });
+          setState({ isCopied: false, error: clipboardError });
           return false;
         } finally {
-          document.body.removeChild(textArea);
-        }
-      }
-
-      // Modern approach with Clipboard API
-      try {
-        await navigator.clipboard.writeText(text);
-        setState({ isCopied: true, error: null, isSupported });
-
-        setTimeout(() => {
-          setState((prev) => ({ ...prev, isCopied: false }));
-        }, timeout);
-
-        return true;
-      } catch (err) {
-        // Handle possible errors:
-        // - NotAllowedError: The request is not allowed
-        // - SecurityError: Permission issues or insecure context
-        let errorMessage = "Failed to copy text to clipboard";
-
-        if (err instanceof Error) {
-          if (err.name === "NotAllowedError") {
-            errorMessage = "Permission to access clipboard was denied";
-          } else if (err.name === "SecurityError") {
-            errorMessage =
-              "Clipboard access is only available in secure contexts (HTTPS)";
+          try {
+            document.body.removeChild(textArea);
+          } catch (err) {
+            // If we can't remove the element, it's not critical
+            console.error("Failed to clean up textarea element", err);
           }
         }
-
-        const clipboardError = new ClipboardError(errorMessage, err);
-        console.error(clipboardError);
-        setState({ isCopied: false, error: clipboardError, isSupported });
-        return false;
       }
     },
-    [timeout, clipboardApiSupported, isSupported]
+    [timeout, clipboardApiSupported, fallbackSupported, isSupported]
   );
 
   return {
+    // State
     isCopied: state.isCopied,
+    // Error handling
     error: state.error,
+    // Support information
     isSupported,
+    // Methods
     copy: copyToClipboard,
     reset,
   };

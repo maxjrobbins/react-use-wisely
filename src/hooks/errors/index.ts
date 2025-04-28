@@ -168,6 +168,19 @@ export class FormError extends BaseError {
 }
 
 /**
+ * Error class for DOM-related errors
+ */
+export class DOMError extends BaseError {
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown>
+  ) {
+    super(message, originalError, context);
+  }
+}
+
+/**
  * Error class for IntersectionObserver-related errors
  */
 export class IntersectionObserverError extends BaseError {
@@ -228,6 +241,20 @@ export class NetworkSpeedError extends BaseError {
   }
 }
 
+/**
+ * Error class for Idle hook errors
+ */
+export class IdleError extends BaseError {
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, any>
+  ) {
+    super(message, originalError, context);
+    this.name = "IdleError";
+  }
+}
+
 export { BaseError };
 export default {
   BaseError,
@@ -237,6 +264,7 @@ export default {
   ClipboardError,
   MediaError,
   FormError,
+  DOMError,
   IntersectionObserverError,
   NetworkError,
   ResizeObserverError,
@@ -246,4 +274,5 @@ export default {
   PermissionError,
   SpeechRecognitionError,
   NetworkSpeedError,
+  IdleError,
 };

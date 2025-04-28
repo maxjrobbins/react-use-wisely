@@ -72,20 +72,24 @@ The `isSupported` property is required for certain hook categories:
 
 ### Error Handling
 
-Each hook should have a specific error class:
+Each hook should use an appropriate error class from the centralized error module:
 
 ```typescript
-export class HookNameError extends Error {
-  constructor(
-    message: string,
-    public originalError?: unknown,
-    public metadata?: Record<string, any>
-  ) {
-    super(message);
-    this.name = "HookNameError";
+import { DOMError } from "./errors";
+
+function useFeatureHook(): HookResult {
+  // ...implementation
+  try {
+    // Hook implementation
+  } catch (err) {
+    // Use the appropriate error class from the centralized module
+    const error = new DOMError("Error message", err);
+    // Handle the error
   }
 }
 ```
+
+All error classes should be defined in `src/hooks/errors/index.ts`, not in individual hook files. This ensures consistent error handling across the library.
 
 ## Feature Detection
 

@@ -33,6 +33,23 @@ export interface UseNetworkSpeedOptions {
 }
 
 /**
+ * Return type for the useNetworkSpeed hook
+ */
+export interface NetworkSpeedResult {
+  // Network information
+  info: ConnectionSpeed;
+  // Status
+  isLoading: boolean;
+  // Error state
+  error: NetworkSpeedError | null;
+  // Feature support
+  isSupported: boolean;
+  isSpeedTestSupported: boolean;
+  // Actions
+  runSpeedTest: () => Promise<void>;
+}
+
+/**
  * Default initial state for network speed tracking
  */
 const initialNetworkState: ConnectionSpeed = {
@@ -283,25 +300,29 @@ export function useNetworkInfo(): Partial<ConnectionSpeed> {
 /**
  * Hook for detecting network speed and connection information
  * @param options - Configuration options
- * @returns Network speed info, test function, loading state, and error
+ * @returns Standardized object with network information, status, error and actions
  */
-function useNetworkSpeed({
-  pollingInterval = 5000,
-  speedTestInterval = 0, // 0 means no automatic testing
-  onConnectionChange,
-  testOnLoad = false,
-  speedTestOptions = {},
-}: UseNetworkSpeedOptions = {}): [
-  ConnectionSpeed,
-  () => Promise<void>,
-  boolean,
-  NetworkSpeedError | null
-] {
+function useNetworkSpeed(
+  options: UseNetworkSpeedOptions = {}
+): NetworkSpeedResult {
+  const {
+    pollingInterval = 5000,
+    speedTestInterval = 0,
+    onConnectionChange,
+    testOnLoad = false,
+    speedTestOptions = {},
+  } = options;
+
   // Get basic connection info
   const connectionInfo = useNetworkInfo();
 
-  // Check if fetch is supported for speed tests
-  const canRunSpeedTests = isFeatureSupported("fetch", () => "fetch" in window);
+  // Feature detection
+  const isNetworkSupported = connectionInfo.isSupported || false;
+  const isSpeedTestSupported = isFeatureSupported(
+    "fetch",
+    () => "fetch" in window
+  );
+  const isSupported = isNetworkSupported || isSpeedTestSupported;
 
   // State for full connection speed data
   const [connectionSpeed, setConnectionSpeed] = useState<ConnectionSpeed>({
@@ -309,12 +330,12 @@ function useNetworkSpeed({
     ...connectionInfo,
   });
 
-  const [loading, setLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [error, setError] = useState<NetworkSpeedError | null>(null);
 
   // Run a complete network speed test
   const runSpeedTest = useCallback(async (): Promise<void> => {
-    if (!canRunSpeedTests) {
+    if (!isSpeedTestSupported) {
       setError(
         new NetworkSpeedError(
           "Speed tests require fetch API which is not supported in this browser",
@@ -324,7 +345,7 @@ function useNetworkSpeed({
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
     setError(null);
 
     try {
@@ -367,10 +388,10 @@ function useNetworkSpeed({
         )
       );
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   }, [
-    canRunSpeedTests,
+    isSpeedTestSupported,
     speedTestOptions,
     connectionInfo,
     connectionSpeed,
@@ -427,7 +448,15 @@ function useNetworkSpeed({
     return () => clearInterval(intervalId);
   }, [speedTestInterval, testOnLoad, runSpeedTest]);
 
-  return [connectionSpeed, runSpeedTest, loading, error];
+  // Return standardized result object
+  return {
+    info: connectionSpeed,
+    isLoading,
+    error,
+    isSupported,
+    isSpeedTestSupported,
+    runSpeedTest,
+  };
 }
 
 export default useNetworkSpeed;

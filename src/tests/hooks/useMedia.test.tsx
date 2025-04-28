@@ -1,20 +1,20 @@
-import React, {FC} from "react";
-import {act, render, screen} from "@testing-library/react";
+import React, { FC } from "react";
+import { act, render, screen } from "@testing-library/react";
 import useMedia from "../../hooks/useMedia";
 
 interface TestComponentProps {
   query: string;
-  defaultState?: boolean;
+  defaultValue?: boolean;
 }
 
 // A test component that uses the hook
-const TestComponent: FC<TestComponentProps> = ({ query, defaultState }) => {
-  const { matches, error } = useMedia(query, defaultState);
+const TestComponent: FC<TestComponentProps> = ({ query, defaultValue }) => {
+  const { isMatching, error } = useMedia(query, { defaultValue });
 
   return (
     <div>
       <div data-testid="matches">
-        {matches ? "Media query matches" : "Media query does not match"}
+        {isMatching ? "Media query matches" : "Media query does not match"}
       </div>
       <div data-testid="query">Current query: {query}</div>
       {error && <div data-testid="error">{error.message}</div>}
@@ -71,7 +71,7 @@ describe("useMedia", () => {
       dispatchEvent: jest.fn(),
     }));
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={false} />);
 
     expect(screen.getByTestId("matches").textContent).toBe(
       "Media query matches"
@@ -93,7 +93,7 @@ describe("useMedia", () => {
 
     (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={false} />);
 
     // Initial state should be false
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -125,7 +125,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={false} />);
 
     // Should use default state
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -151,7 +151,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={true} />);
 
     // Should use default state
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -181,7 +181,7 @@ describe("useMedia", () => {
     (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
 
     const { unmount } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // Check that listeners are added with the old API
@@ -206,7 +206,7 @@ describe("useMedia", () => {
     (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
 
     const { unmount } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // Check that listeners are added
@@ -244,7 +244,7 @@ describe("useMedia", () => {
 
     // Initial render with shouldMatch = false
     const { rerender } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // First render should not match
@@ -255,7 +255,7 @@ describe("useMedia", () => {
     shouldMatch = true;
 
     rerender(
-      <TestComponent query="(min-width: 1200px)" defaultState={false} />
+      <TestComponent query="(min-width: 1200px)" defaultValue={false} />
     );
 
     // Force update via listeners to ensure state is refreshed
@@ -287,7 +287,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="invalid-query" defaultState={true} />);
+    render(<TestComponent query="invalid-query" defaultValue={true} />);
 
     // Should use default state
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -303,8 +303,8 @@ describe("useMedia", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test("should handle defaultState correctly when it changes", () => {
-    // Mock matchMedia to always throw an error so we rely on defaultState
+  test("should handle defaultValue correctly when it changes", () => {
+    // Mock matchMedia to always throw an error so we rely on defaultValue
     (window.matchMedia as jest.Mock).mockImplementation(() => {
       throw new Error("matchMedia error");
     });
@@ -313,9 +313,9 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    // Initial render with defaultState=false
+    // Initial render with defaultValue=false
     const { unmount } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // Should use initial default state (false)
@@ -326,8 +326,8 @@ describe("useMedia", () => {
     // Clean up and start fresh for next render
     unmount();
 
-    // Render again with defaultState=true
-    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+    // Render again with defaultValue=true
+    render(<TestComponent query="(min-width: 600px)" defaultValue={true} />);
 
     // Should use new default state (true)
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -337,7 +337,7 @@ describe("useMedia", () => {
     consoleErrorSpy.mockRestore();
   });
 
-  test("should handle server-side rendering by using defaultState", () => {
+  test("should handle server-side rendering by using defaultValue", () => {
     // Mock matchMedia to throw an error when accessed (which tests the SSR path indirectly)
     (window.matchMedia as jest.Mock).mockImplementation(() => {
       throw new Error("matchMedia not available (simulating SSR)");
@@ -347,10 +347,10 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    // Render with defaultState=true, which should be used when matchMedia is not available
-    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+    // Render with defaultValue=true, which should be used when matchMedia is not available
+    render(<TestComponent query="(min-width: 600px)" defaultValue={true} />);
 
-    // In "SSR-like" environment (no matchMedia), the component should still render with defaultState
+    // In "SSR-like" environment (no matchMedia), the component should still render with defaultValue
     expect(screen.getByTestId("matches").textContent).toBe(
       "Media query matches"
     );
@@ -375,7 +375,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={false} />);
 
     expect(screen.getByTestId("matches")).toBeInTheDocument();
 
@@ -402,7 +402,7 @@ describe("useMedia", () => {
     (window.matchMedia as jest.Mock).mockImplementation(() => mockMqlRef);
 
     const { rerender } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // Initial state should be true based on the mockMql
@@ -426,7 +426,7 @@ describe("useMedia", () => {
 
     // Rerender with a different query to trigger the effect
     rerender(
-      <TestComponent query="(min-width: 1200px)" defaultState={false} />
+      <TestComponent query="(min-width: 1200px)" defaultValue={false} />
     );
 
     // Verify the matches state is preserved (should still be true)
@@ -452,7 +452,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={true} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={true} />);
 
     // Should use the default state
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -481,7 +481,7 @@ describe("useMedia", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    render(<TestComponent query="(min-width: 600px)" defaultState={false} />);
+    render(<TestComponent query="(min-width: 600px)" defaultValue={false} />);
 
     // The match state should be based on the initial match value
     expect(screen.getByTestId("matches").textContent).toBe(
@@ -508,7 +508,7 @@ describe("useMedia", () => {
 
     // Mount and immediately unmount to test the cleanup function
     const { unmount } = render(
-      <TestComponent query="(min-width: 600px)" defaultState={false} />
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
     );
 
     // The initial state should reflect mockMql.matches
@@ -526,7 +526,7 @@ describe("useMedia", () => {
     // This test is successful if it doesn't throw any errors
   });
 
-  test("should use defaultState when window is undefined during initialization", () => {
+  test("should use defaultValue when window is undefined during initialization", () => {
     // Create a mock for useState that captures the initializer function
     const useStateMock = jest.fn().mockImplementation((initializer) => {
       // Execute the initializer function with a mocked window context
@@ -571,32 +571,36 @@ describe("useMedia", () => {
     try {
       // Create test components that use the hook
       const TestDefaultTrue = () => {
-        const { matches } = useMedia("(min-width: 600px)", true);
-        return <div data-testid="result">{matches ? "true" : "false"}</div>;
+        const { isMatching } = useMedia("(min-width: 600px)", {
+          defaultValue: true,
+        });
+        return <div data-testid="result">{isMatching ? "true" : "false"}</div>;
       };
 
       const TestDefaultFalse = () => {
-        const { matches } = useMedia("(min-width: 600px)", false);
-        return <div data-testid="result">{matches ? "true" : "false"}</div>;
+        const { isMatching } = useMedia("(min-width: 600px)", {
+          defaultValue: false,
+        });
+        return <div data-testid="result">{isMatching ? "true" : "false"}</div>;
       };
 
-      // Render with defaultState=true
+      // Render with defaultValue=true
       const { unmount: unmount1 } = render(<TestDefaultTrue />);
 
-      // First call's initializer should return using defaultState=true
+      // First call's initializer should return using defaultValue=true
       const firstInitializer = useStateMock.mock.calls[0][0];
       const firstInitialValue = firstInitializer();
-      expect(firstInitialValue.matches).toBe(true);
+      expect(firstInitialValue.isMatching).toBe(true);
 
       unmount1();
 
-      // Render with defaultState=false
+      // Render with defaultValue=false
       const { unmount: unmount2 } = render(<TestDefaultFalse />);
 
-      // Second call's initializer should return using defaultState=false
+      // Second call's initializer should return using defaultValue=false
       const secondInitializer = useStateMock.mock.calls[1][0];
       const secondInitialValue = secondInitializer();
-      expect(secondInitialValue.matches).toBe(false);
+      expect(secondInitialValue.isMatching).toBe(false);
 
       unmount2();
     } finally {
@@ -631,8 +635,10 @@ describe("useMedia", () => {
     try {
       // Create a test component
       const TestComponent = () => {
-        const { matches } = useMedia("(min-width: 600px)", false);
-        return <div>{matches ? "true" : "false"}</div>;
+        const { isMatching } = useMedia("(min-width: 600px)", {
+          defaultValue: false,
+        });
+        return <div>{isMatching ? "true" : "false"}</div>;
       };
 
       // Render the component
@@ -700,8 +706,10 @@ describe("useMedia", () => {
     try {
       // Create a test component
       const TestComponent = () => {
-        const { matches } = useMedia("(min-width: 600px)", false);
-        return <div>{matches ? "true" : "false"}</div>;
+        const { isMatching } = useMedia("(min-width: 600px)", {
+          defaultValue: false,
+        });
+        return <div>{isMatching ? "true" : "false"}</div>;
       };
 
       // Render the component
@@ -732,64 +740,37 @@ describe("useMedia", () => {
     }
   });
 
-  test("should handle the final cleanup function path", () => {
-    // Store original useEffect
-    const originalUseEffect = React.useEffect;
-
-    // Create a spy on console.error
+  test("should handle the final cleanup function path", async () => {
     const consoleErrorSpy = jest
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    // Define the mock functions and variables
-    let cleanupFunction: (() => void) | undefined;
-
-    // Custom useEffect implementation that captures the effect and immediately runs it
-    const customUseEffect = (
-        effect: React.EffectCallback,
-    ) => {
-
-      // Call the effect function immediately
-      cleanupFunction = effect() as (() => void) | undefined;
-
-      // Return a noop cleanup function for React
-      return () => {};
+    // Mock matchMedia to return an object without listener methods
+    const mockMql = {
+      matches: true,
+      media: "(min-width: 600px)",
+      // Intentionally not including addEventListener or addListener
     };
 
-    // Replace useEffect
-    React.useEffect = customUseEffect as unknown as typeof React.useEffect;
+    (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
 
-    try {
-      // This mocks a matchMedia implementation that has no listener methods
-      // This will trigger the fallback cleanup path in lines 50-56
-      const mockMql = {
-        matches: true,
-        media: "(min-width: 600px)",
-        // Intentionally not including addEventListener or addListener
-      };
+    // Render with the mock object that has no listeners
+    const { unmount } = render(
+      <TestComponent query="(min-width: 600px)" defaultValue={false} />
+    );
 
-      (window.matchMedia as jest.Mock).mockImplementation(() => mockMql);
+    // Initial state should reflect mockMql.matches
+    expect(screen.getByTestId("matches").textContent).toBe(
+      "Media query matches"
+    );
 
-      // Render a component with our mock
-      const { unmount } = render(
-        <TestComponent query="(min-width: 600px)" defaultState={false} />
-      );
+    // No error should be shown when there are no listener methods
+    expect(screen.queryByTestId("error")).toBeNull();
 
-      // Check that we got a cleanup function
-      expect(cleanupFunction).toBeDefined();
-      expect(typeof cleanupFunction).toBe("function");
+    // Unmount to trigger cleanup
+    unmount();
 
-      // Execute the cleanup function, which should set mounted to false
-      if (cleanupFunction) {
-        cleanupFunction();
-      }
-
-      // Unmount
-      unmount();
-    } finally {
-      // Restore original functions
-      React.useEffect = originalUseEffect;
-      consoleErrorSpy.mockRestore();
-    }
+    // Clean up spy
+    consoleErrorSpy.mockRestore();
   });
 });

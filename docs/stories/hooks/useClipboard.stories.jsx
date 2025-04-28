@@ -16,7 +16,7 @@ export default {
 
 export const Default = () => {
   const [textToCopy, setTextToCopy] = useState("Hello, clipboard!");
-  const { isCopied, error, copy, reset } = useClipboard();
+  const { isCopied, error, isSupported, copy, reset } = useClipboard();
 
   const handleCopy = async () => {
     await copy(textToCopy);
@@ -27,6 +27,20 @@ export const Default = () => {
       style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
     >
       <h3>Clipboard Interaction Demo</h3>
+
+      {!isSupported && (
+        <div
+          style={{
+            padding: "8px",
+            backgroundColor: "#ffebee",
+            color: "#c62828",
+            borderRadius: "4px",
+            marginBottom: "15px",
+          }}
+        >
+          ⚠️ Clipboard operations are not supported in this browser environment.
+        </div>
+      )}
 
       <div style={{ marginBottom: "30px" }}>
         <h4>Copy to Clipboard</h4>
@@ -54,6 +68,7 @@ export const Default = () => {
               borderRadius: "4px",
               cursor: "pointer",
             }}
+            disabled={!isSupported}
           >
             Copy Text
           </button>
@@ -116,7 +131,10 @@ Default.storyName = "Basic Usage";
 
 export const WithErrorHandling = () => {
   const [textToCopy, setTextToCopy] = useState("Hello, clipboard!");
-  const { isCopied, error, copy, reset } = useClipboard();
+  const [timeout, setTimeout] = useState(2000);
+  const { isCopied, error, isSupported, copy, reset } = useClipboard({
+    timeout: timeout,
+  });
 
   const handleCopy = async () => {
     const success = await copy(textToCopy);
@@ -133,6 +151,20 @@ export const WithErrorHandling = () => {
       style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
     >
       <h3>Advanced Clipboard Demo with Error Handling</h3>
+
+      {!isSupported && (
+        <div
+          style={{
+            padding: "8px",
+            backgroundColor: "#ffebee",
+            color: "#c62828",
+            borderRadius: "4px",
+            marginBottom: "15px",
+          }}
+        >
+          ⚠️ Clipboard operations are not supported in this browser environment.
+        </div>
+      )}
 
       <div style={{ marginBottom: "30px" }}>
         <h4>Copy to Clipboard</h4>
@@ -161,6 +193,7 @@ export const WithErrorHandling = () => {
               cursor: "pointer",
               marginRight: "8px",
             }}
+            disabled={!isSupported}
           >
             Copy Text
           </button>
@@ -177,6 +210,26 @@ export const WithErrorHandling = () => {
           >
             Reset
           </button>
+        </div>
+
+        <div style={{ marginBottom: "10px", marginTop: "10px" }}>
+          <label style={{ display: "block", marginBottom: "5px" }}>
+            Reset timeout (ms):
+          </label>
+          <input
+            type="number"
+            value={timeout}
+            onChange={(e) => setTimeout(Number(e.target.value))}
+            min="500"
+            step="500"
+            max="10000"
+            style={{
+              padding: "8px",
+              width: "100%",
+              borderRadius: "4px",
+              border: "1px solid #ccc",
+            }}
+          />
         </div>
 
         {isCopied && (

@@ -21,7 +21,7 @@ function TestComponent({
   text = "Test text",
   timeout = 2000,
 }: TestComponentProps): ReactElement {
-  const { isCopied, copy, error, reset } = useClipboard(timeout);
+  const { isCopied, copy, error, reset } = useClipboard({ timeout });
 
   return (
     <div>
@@ -515,28 +515,55 @@ describe("useClipboard", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    // Create a modified document object for testing
-    const originalDoc = global.document;
+    // Create a test component that will handle the null document.body
+    const TestMissingBodyComponent = () => {
+      const { copy, error, isCopied } = useClipboard();
 
-    // Use renderHook to get hook instance
-    const { result } = renderHook(() => useClipboard());
+      // Run the copy function on mount
+      React.useEffect(() => {
+        const runCopy = async () => {
+          // Set document.body to null right before the copy call
+          const originalDocumentBody = document.body;
+          Object.defineProperty(document, "body", {
+            value: null,
+            configurable: true,
+          });
 
-    // Create a modified document for testing
-    const mockDoc = { ...originalDoc };
-    Object.defineProperty(mockDoc, "body", { value: undefined });
+          try {
+            await copy("Test text");
+          } finally {
+            // Restore document.body
+            Object.defineProperty(document, "body", {
+              value: originalDocumentBody,
+              configurable: true,
+            });
+          }
+        };
 
-    // We can't actually replace global document in jest without breaking things
-    // but we can test our implementation works with a custom body check
+        runCopy();
+      }, [copy]);
 
-    // Instead, we'll confirm our hook has implemented proper document.body checking
-    expect(result.current.error).toBeNull();
+      return (
+        <div>
+          <div data-testid="status">{isCopied ? "Copied!" : "Not copied"}</div>
+          {error && <div data-testid="error">{error.message}</div>}
+        </div>
+      );
+    };
 
-    // Just verify the method was called without error
-    await act(async () => {
-      // Our mock isn't perfect, but the main point is to verify
-      // the hook has body checking code in place
-      await result.current.copy("Test text");
-    });
+    // Render the test component
+    render(<TestMissingBodyComponent />);
+
+    // Wait for the error message to appear
+    await screen.findByTestId("error");
+
+    // Check that the error message contains the expected text
+    expect(screen.getByTestId("error").textContent).toContain(
+      "document.body is not available"
+    );
+
+    // Status should not change on error
+    expect(screen.getByTestId("status").textContent).toBe("Not copied");
 
     // Clean up
     consoleErrorSpy.mockRestore();
