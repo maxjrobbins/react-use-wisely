@@ -1,113 +1,97 @@
 // Detect user inactivity
 import { useState, useEffect, useCallback } from "react";
-import { runInBrowser, isFeatureSupported } from "../utils/browser";
+import { DOMError } from "./errors";
 
-/**
- * Result type for the useIdle hook
- */
-interface IdleResult {
+interface UseIdleOptions {
+  timeout?: number;
+  events?: string[];
+}
+
+interface UseIdleResult {
   isIdle: boolean;
   isSupported: boolean;
-  lastActive: number | null;
+  error: Error | null;
+  reset: () => void;
 }
 
 /**
  * Hook that tracks user idle state
- * @param timeout - Idle timeout in ms
- * @param events - DOM events to reset idle timer
- * @returns Object with idle state and support information
+ * @param options - Configuration options for the idle detection
+ * @param options.timeout - Idle timeout in ms (default: 60000)
+ * @param options.events - DOM events to reset idle timer
+ * @returns Object containing idle state and controls
  */
-const useIdle = (
-  timeout: number = 60000,
-  events: string[] = [
-    "mousedown",
-    "mousemove",
-    "keypress",
-    "scroll",
-    "touchstart",
-  ]
-): IdleResult => {
-  // Check if we're in a browser environment that supports DOM events
-  const isEventSupported = isFeatureSupported(
-    "domEvents",
-    () =>
-      typeof window !== "undefined" &&
-      typeof document !== "undefined" &&
-      typeof document.addEventListener === "function"
-  );
+const useIdle = ({
+  timeout = 60000,
+  events = ["mousedown", "mousemove", "keypress", "scroll", "touchstart"],
+}: UseIdleOptions = {}): UseIdleResult => {
+  const [isIdle, setIsIdle] = useState<boolean>(timeout === 0);
+  const [error, setError] = useState<Error | null>(null);
 
-  // State holding idle information
-  const [state, setState] = useState<IdleResult>(() =>
-    runInBrowser<IdleResult>(
-      () => ({
-        isIdle: timeout === 0,
-        isSupported: isEventSupported,
-        lastActive: isEventSupported ? Date.now() : null,
-      }),
-      // Default for non-browser environments
-      () => ({
-        isIdle: false,
-        isSupported: false,
-        lastActive: null,
-      })
-    )
-  );
+  // Feature detection for browser support
+  const isSupported =
+    typeof window !== "undefined" && typeof document !== "undefined";
 
   const handleActivity = useCallback(() => {
-    const now = Date.now();
-    setState((prev) => ({
-      ...prev,
-      isIdle: false,
-      lastActive: now,
-    }));
+    try {
+      setIsIdle(false);
 
-    // Reset timeout
-    const timeoutId = setTimeout(() => {
-      setState((prev) => ({
-        ...prev,
-        isIdle: true,
-      }));
-    }, timeout);
+      // Reset timeout
+      const timeoutId = setTimeout(() => {
+        setIsIdle(true);
+      }, timeout);
 
-    return () => {
-      clearTimeout(timeoutId);
-    };
+      return () => {
+        clearTimeout(timeoutId);
+      };
+    } catch (err) {
+      setError(new DOMError("Failed to handle activity", err));
+      return () => {};
+    }
   }, [timeout]);
 
+  const reset = useCallback(() => {
+    try {
+      setIsIdle(false);
+      handleActivity();
+    } catch (err) {
+      setError(new DOMError("Failed to reset idle state", err));
+    }
+  }, [handleActivity]);
+
   useEffect(() => {
-    // Early return if not supported or not in browser
-    if (!state.isSupported) {
+    if (!isSupported) {
+      setError(new DOMError("Browser environment not supported"));
       return;
     }
 
-    // Only set up timer if timeout is not 0
-    const cleanup = timeout > 0 ? handleActivity() : () => {};
+    try {
+      // Only set up timer if timeout is not 0
+      const cleanup = timeout > 0 ? handleActivity() : () => {};
 
-    // Add event listeners
-    events.forEach((event) => {
-      document.addEventListener(event, handleActivity);
-    });
-
-    // Check for visibility change events to detect when user returns to the tab
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === "visible") {
-        handleActivity();
-      }
-    };
-
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-
-    // Clean up
-    return () => {
-      cleanup();
+      // Add event listeners
       events.forEach((event) => {
-        document.removeEventListener(event, handleActivity);
+        document.addEventListener(event, handleActivity);
       });
-      document.removeEventListener("visibilitychange", handleVisibilityChange);
-    };
-  }, [events, handleActivity, timeout, state.isSupported]);
 
-  return state;
+      // Clean up
+      return () => {
+        cleanup();
+        events.forEach((event) => {
+          document.removeEventListener(event, handleActivity);
+        });
+      };
+    } catch (err) {
+      setError(new DOMError("Failed to set up idle detection", err));
+    }
+  }, [events, handleActivity, timeout, isSupported]);
+
+  return {
+    isIdle,
+    isSupported,
+    error,
+    reset,
+  };
 };
 
 export default useIdle;

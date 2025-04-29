@@ -8,14 +8,14 @@ export default {
     docs: {
       description: {
         component:
-          "A React hook that provides the current online status of the browser with error handling.",
+          "A React hook that provides the current online status of the browser with error handling and feature detection support.",
       },
     },
   },
 };
 
 export const Default = () => {
-  const { isOnline, error, lastChanged } = useOnline();
+  const { isOnline, error, lastChanged, isSupported } = useOnline();
 
   return (
     <div
@@ -62,12 +62,31 @@ export const Default = () => {
         )}
       </div>
 
+      <div
+        style={{
+          marginTop: "15px",
+          padding: "10px",
+          borderRadius: "4px",
+          backgroundColor: "#e3f2fd",
+          color: "#0d47a1",
+        }}
+      >
+        <strong>API Support:</strong>{" "}
+        {isSupported
+          ? "This browser supports the online/offline API"
+          : "This browser does not support the online/offline API"}
+      </div>
+
       <div style={{ marginTop: "30px" }}>
         <h4>How to test:</h4>
         <ul style={{ paddingLeft: "20px" }}>
           <li>Turn off your Wi-Fi or disconnect from the internet</li>
           <li>The status above will automatically update</li>
           <li>Reconnect to see it change back</li>
+          <li>
+            The hook will also periodically ping a server to verify connection
+            status
+          </li>
         </ul>
       </div>
 
@@ -82,7 +101,7 @@ export const Default = () => {
 Default.storyName = "Basic Usage";
 
 export const WithErrorDetails = () => {
-  const { isOnline, error, lastChanged } = useOnline();
+  const { isOnline, error, lastChanged, isSupported } = useOnline();
 
   const formatTimestamp = (timestamp) => {
     if (!timestamp) return "N/A";
@@ -206,6 +225,26 @@ export const WithErrorDetails = () => {
               </td>
             </tr>
             <tr>
+              <td
+                style={{
+                  padding: "8px",
+                  borderBottom: "1px solid #ddd",
+                  fontWeight: "bold",
+                }}
+              >
+                API Support:
+              </td>
+              <td
+                style={{
+                  padding: "8px",
+                  borderBottom: "1px solid #ddd",
+                  color: isSupported ? "#2e7d32" : "#ff8f00",
+                }}
+              >
+                {isSupported ? "Supported" : "Not Supported"}
+              </td>
+            </tr>
+            <tr>
               <td style={{ padding: "8px", fontWeight: "bold" }}>
                 Navigator Info:
               </td>
@@ -230,6 +269,7 @@ export const WithErrorDetails = () => {
           </li>
           <li>Or disconnect your device from the internet</li>
           <li>Watch the status and timestamp update automatically</li>
+          <li>The hook performs periodic connection checks every 30 seconds</li>
         </ol>
       </div>
 
