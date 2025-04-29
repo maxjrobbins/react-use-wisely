@@ -16,14 +16,16 @@ const TestComponent: FC = () => {
   const { isOnline, error, lastChanged, isSupported } = useOnline();
 
   return (
-      <div>
-        <div data-testid="status">{isOnline ? "Online" : "Offline"}</div>
-        {error && <div data-testid="error">{error.message}</div>}
-        {lastChanged && (
-            <div data-testid="last-changed">{lastChanged.toISOString()}</div>
-        )}
-        <div data-testid="supported">{isSupported ? "Supported" : "Not Supported"}</div>
+    <div>
+      <div data-testid="status">{isOnline ? "Online" : "Offline"}</div>
+      {error && <div data-testid="error">{error.message}</div>}
+      {lastChanged && (
+        <div data-testid="last-changed">{lastChanged.toISOString()}</div>
+      )}
+      <div data-testid="supported">
+        {isSupported ? "Supported" : "Not Supported"}
       </div>
+    </div>
   );
 };
 
@@ -33,10 +35,13 @@ describe("useOnline - Basic Functionality", () => {
 
   beforeAll(() => {
     // Save original descriptor
-    originalDescriptor = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
+    originalDescriptor = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "onLine"
+    );
 
     // Set up mockable navigator.onLine
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(true),
     });
@@ -45,7 +50,7 @@ describe("useOnline - Basic Functionality", () => {
   afterAll(() => {
     // Restore original navigator.onLine
     if (originalDescriptor) {
-      Object.defineProperty(window.navigator, 'onLine', originalDescriptor);
+      Object.defineProperty(window.navigator, "onLine", originalDescriptor);
     }
   });
 
@@ -54,7 +59,7 @@ describe("useOnline - Basic Functionality", () => {
     jest.clearAllMocks();
 
     // Default to online
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(true),
     });
@@ -64,7 +69,9 @@ describe("useOnline - Basic Functionality", () => {
     window.removeEventListener = jest.fn();
 
     // Mock setInterval to prevent actual timer setup
-    window.setInterval = jest.fn(() => 123);
+    const mockTimer = () => 123;
+    mockTimer.__promisify__ = () => Promise.resolve();
+    window.setInterval = jest.fn().mockReturnValue(123);
     window.clearInterval = jest.fn();
   });
 
@@ -76,7 +83,7 @@ describe("useOnline - Basic Functionality", () => {
 
   test("should return false when navigator.onLine is false", () => {
     // Override the mock to return false
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(false),
     });
@@ -87,14 +94,14 @@ describe("useOnline - Basic Functionality", () => {
 
   test("should update when online event is triggered", () => {
     // Start in offline state
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(false),
     });
 
     // Make addEventListener actually call the handler
     window.addEventListener = jest.fn((event, handler) => {
-      if (event === 'online') {
+      if (event === "online") {
         // Store the handler to call it later
         (window as any).onlineHandler = handler;
       }
@@ -104,7 +111,7 @@ describe("useOnline - Basic Functionality", () => {
     expect(screen.getByTestId("status").textContent).toBe("Offline");
 
     // Change to online
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(true),
     });
@@ -121,7 +128,7 @@ describe("useOnline - Basic Functionality", () => {
   test("should update when offline event is triggered", () => {
     // Make addEventListener actually call the handler
     window.addEventListener = jest.fn((event, handler) => {
-      if (event === 'offline') {
+      if (event === "offline") {
         // Store the handler to call it later
         (window as any).offlineHandler = handler;
       }
@@ -131,7 +138,7 @@ describe("useOnline - Basic Functionality", () => {
     expect(screen.getByTestId("status").textContent).toBe("Online");
 
     // Change to offline
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(false),
     });
@@ -150,12 +157,12 @@ describe("useOnline - Basic Functionality", () => {
 
     // Check if event listeners were added
     expect(window.addEventListener).toHaveBeenCalledWith(
-        "online",
-        expect.any(Function)
+      "online",
+      expect.any(Function)
     );
     expect(window.addEventListener).toHaveBeenCalledWith(
-        "offline",
-        expect.any(Function)
+      "offline",
+      expect.any(Function)
     );
 
     // Unmount component
@@ -163,18 +170,18 @@ describe("useOnline - Basic Functionality", () => {
 
     // Check if event listeners were removed
     expect(window.removeEventListener).toHaveBeenCalledWith(
-        "online",
-        expect.any(Function)
+      "online",
+      expect.any(Function)
     );
     expect(window.removeEventListener).toHaveBeenCalledWith(
-        "offline",
-        expect.any(Function)
+      "offline",
+      expect.any(Function)
     );
   });
 
   test("should handle error when determining initial status", () => {
     // Mock navigator.onLine to throw an error
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn(() => {
         throw new Error("Failed to determine initial online status");
@@ -191,7 +198,9 @@ describe("useOnline - Basic Functionality", () => {
 
     // Should display error
     expect(screen.getByTestId("error")).toBeInTheDocument();
-    expect(screen.getByTestId("error").textContent).toContain("Failed to determine initial online status");
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Failed to determine initial online status"
+    );
   });
 
   test("should report network errors when setting up listeners", () => {
@@ -207,7 +216,9 @@ describe("useOnline - Basic Functionality", () => {
 
     // Should have error
     expect(screen.getByTestId("error")).toBeInTheDocument();
-    expect(screen.getByTestId("error").textContent).toContain("Failed to set up network status listeners");
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Failed to set up network status listeners"
+    );
   });
 
   test("should indicate when API is not supported", () => {
@@ -236,7 +247,10 @@ describe("useOnline - Ping Functionality", () => {
 
   beforeAll(() => {
     // Save original values
-    originalNavigatorOnline = Object.getOwnPropertyDescriptor(window.navigator, 'onLine');
+    originalNavigatorOnline = Object.getOwnPropertyDescriptor(
+      window.navigator,
+      "onLine"
+    );
     originalSetInterval = window.setInterval;
     originalClearInterval = window.clearInterval;
     originalFetch = window.fetch;
@@ -245,7 +259,7 @@ describe("useOnline - Ping Functionality", () => {
     originalClearTimeout = window.clearTimeout;
 
     // Set up mockable navigator.onLine
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(true),
     });
@@ -254,7 +268,11 @@ describe("useOnline - Ping Functionality", () => {
   afterAll(() => {
     // Restore original values
     if (originalNavigatorOnline) {
-      Object.defineProperty(window.navigator, 'onLine', originalNavigatorOnline);
+      Object.defineProperty(
+        window.navigator,
+        "onLine",
+        originalNavigatorOnline
+      );
     }
     window.setInterval = originalSetInterval;
     window.clearInterval = originalClearInterval;
@@ -269,13 +287,13 @@ describe("useOnline - Ping Functionality", () => {
     jest.clearAllMocks();
 
     // Default to online
-    Object.defineProperty(window.navigator, 'onLine', {
+    Object.defineProperty(window.navigator, "onLine", {
       configurable: true,
       get: jest.fn().mockReturnValue(true),
     });
 
     // Mock setInterval to return a consistent ID
-    window.setInterval = jest.fn(() => 123);
+    window.setInterval = jest.fn().mockReturnValue(123);
 
     // Mock clearInterval
     window.clearInterval = jest.fn();
@@ -287,10 +305,9 @@ describe("useOnline - Ping Functionality", () => {
     console.error = jest.fn();
 
     // Mock setTimeout
-    window.setTimeout = jest.fn(() => 456);
-
-    // Mock clearTimeout
-    window.clearTimeout = jest.fn();
+    window.setTimeout = jest
+      .fn()
+      .mockReturnValue(456) as unknown as typeof setTimeout;
 
     // Reset event listeners
     window.addEventListener = jest.fn();
@@ -301,7 +318,10 @@ describe("useOnline - Ping Functionality", () => {
     render(<TestComponent />);
 
     // Should set up interval for the ping
-    expect(window.setInterval).toHaveBeenCalledWith(expect.any(Function), 30000);
+    expect(window.setInterval).toHaveBeenCalledWith(
+      expect.any(Function),
+      30000
+    );
   });
 
   test("should clean up ping interval when component unmounts", () => {
@@ -342,6 +362,8 @@ describe("useOnline - Ping Functionality", () => {
     // Now check if the UI has updated
     expect(screen.getByTestId("status").textContent).toBe("Offline");
     expect(screen.getByTestId("error")).toBeInTheDocument();
-    expect(screen.getByTestId("error").textContent).toContain("Connection check failed");
+    expect(screen.getByTestId("error").textContent).toContain(
+      "Connection check failed"
+    );
   });
 });
