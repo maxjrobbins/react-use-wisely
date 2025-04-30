@@ -15,10 +15,7 @@ interface FormValues {
 
 interface TestFormProps {
   initialValues: FormValues;
-  onSubmit: (
-    values: FormValues,
-    formActions: { resetForm: () => void }
-  ) => void;
+  onSubmit: (values: FormValues, formActions: { reset: () => void }) => void;
   validate?: (values: FormValues) => FormErrors<FormValues>;
 }
 
@@ -32,13 +29,13 @@ function TestForm({
     values,
     errors,
     touched,
-    isSubmitting,
+    isLoading,
     isValid,
-    formError,
+    error,
     handleChange,
     handleBlur,
     handleSubmit,
-    resetForm,
+    reset,
   } = useForm<FormValues>(initialValues, onSubmit, validate);
 
   return (
@@ -67,13 +64,13 @@ function TestForm({
         <div data-testid="email-error">{errors.email}</div>
       )}
 
-      {formError && <div data-testid="form-error">{formError.message}</div>}
+      {error && <div data-testid="form-error">{error.message}</div>}
 
-      <button data-testid="submit-button" type="submit" disabled={isSubmitting}>
+      <button data-testid="submit-button" type="submit" disabled={isLoading}>
         Submit
       </button>
 
-      <button data-testid="reset-button" type="button" onClick={resetForm}>
+      <button data-testid="reset-button" type="button" onClick={reset}>
         Reset
       </button>
 
@@ -81,7 +78,7 @@ function TestForm({
 
       <div data-testid="touched-display">{JSON.stringify(touched)}</div>
 
-      <div data-testid="submitting-display">{isSubmitting.toString()}</div>
+      <div data-testid="submitting-display">{isLoading.toString()}</div>
 
       <div data-testid="valid-display">{isValid.toString()}</div>
     </form>
@@ -180,7 +177,7 @@ describe("useForm", () => {
     });
 
     expect(mockSubmit).toHaveBeenCalledWith(initialValues, {
-      resetForm: expect.any(Function),
+      reset: expect.any(Function),
     });
     expect(screen.getByTestId("submitting-display").textContent).toBe("true");
   });
@@ -214,7 +211,7 @@ describe("useForm", () => {
     );
   });
 
-  test("should reset form to initial values when resetForm is called", () => {
+  test("should reset form to initial values when reset is called", () => {
     render(<TestForm initialValues={initialValues} onSubmit={mockSubmit} />);
 
     // Change some values
@@ -520,18 +517,16 @@ describe("useForm", () => {
 
   // Test for form reset after successful submission
   test("should be able to reset form after successful submission", async () => {
-    // Mock that calls resetForm after submission
-    const submitAndReset = jest
-      .fn()
-      .mockImplementation((values, { resetForm }) => {
-        // Simulate async action
-        return new Promise<void>((resolve) => {
-          setTimeout(() => {
-            resetForm();
-            resolve();
-          }, 100);
-        });
+    // Mock that calls reset after submission
+    const submitAndReset = jest.fn().mockImplementation((values, { reset }) => {
+      // Simulate async action
+      return new Promise<void>((resolve) => {
+        setTimeout(() => {
+          reset();
+          resolve();
+        }, 100);
       });
+    });
 
     render(
       <TestForm initialValues={initialValues} onSubmit={submitAndReset} />
@@ -620,7 +615,7 @@ describe("useForm", () => {
             Submit Directly
           </button>
           <div data-testid="submitting-display">
-            {form.isSubmitting.toString()}
+            {form.isLoading.toString()}
           </div>
         </div>
       );

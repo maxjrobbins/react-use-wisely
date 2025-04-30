@@ -48,16 +48,22 @@ export const Default = () => {
     return errors;
   };
 
-  const onSubmit = (values) => {
+  const onSubmit = (values, { reset }) => {
     alert(JSON.stringify(values, null, 2));
+    reset();
   };
 
-  const { values, errors, touched, handleChange, handleBlur, handleSubmit } =
-    useForm({
-      initialValues,
-      validate,
-      onSubmit,
-    });
+  const {
+    values,
+    errors,
+    touched,
+    isLoading,
+    error,
+    handleChange,
+    handleBlur,
+    handleSubmit,
+    reset,
+  } = useForm(initialValues, onSubmit, validate);
 
   const getFieldStyle = (fieldName) => {
     return {
@@ -163,19 +169,53 @@ export const Default = () => {
           )}
         </div>
 
-        <button
-          type="submit"
-          style={{
-            padding: "10px 15px",
-            backgroundColor: "#4CAF50",
-            color: "white",
-            border: "none",
-            borderRadius: "4px",
-            cursor: "pointer",
-          }}
-        >
-          Submit
-        </button>
+        {error && (
+          <div
+            style={{
+              color: "#ff0000",
+              fontSize: "14px",
+              marginBottom: "15px",
+              padding: "10px",
+              backgroundColor: "#fff0f0",
+              borderRadius: "4px",
+            }}
+          >
+            {error.message}
+          </div>
+        )}
+
+        <div style={{ display: "flex", gap: "10px" }}>
+          <button
+            type="submit"
+            disabled={isLoading}
+            style={{
+              padding: "10px 15px",
+              backgroundColor: "#4CAF50",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+              opacity: isLoading ? 0.7 : 1,
+            }}
+          >
+            {isLoading ? "Submitting..." : "Submit"}
+          </button>
+
+          <button
+            type="button"
+            onClick={reset}
+            style={{
+              padding: "10px 15px",
+              backgroundColor: "#f44336",
+              color: "white",
+              border: "none",
+              borderRadius: "4px",
+              cursor: "pointer",
+            }}
+          >
+            Reset
+          </button>
+        </div>
       </form>
 
       <div style={{ marginTop: "30px" }}>
@@ -188,7 +228,11 @@ export const Default = () => {
             overflow: "auto",
           }}
         >
-          {JSON.stringify({ values, errors, touched }, null, 2)}
+          {JSON.stringify(
+            { values, errors, touched, isLoading, error },
+            null,
+            2
+          )}
         </pre>
       </div>
     </div>

@@ -13,16 +13,23 @@ export type FormErrors<T> = Partial<Record<keyof T, string>>;
 export type FormTouched<T> = Partial<Record<keyof T, boolean>>;
 
 export interface UseFormReturn<T> {
+  // Main state properties
   values: T;
   errors: FormErrors<T>;
   touched: FormTouched<T>;
-  isSubmitting: boolean;
+
+  // Status indicators
+  isLoading: boolean;
   isValid: boolean;
-  formError: FormError | null;
+
+  // Error state
+  error: FormError | null;
+
+  // Actions/Methods
   handleChange: (event: ChangeEvent<HTMLInputElement>) => void;
   handleBlur: (event: FocusEvent<HTMLInputElement>) => void;
   handleSubmit: (event?: FormEvent<HTMLFormElement>) => void;
-  resetForm: () => void;
+  reset: () => void;
   setFieldValue: (field: keyof T, value: any) => void;
 }
 
@@ -37,23 +44,23 @@ const useForm = <T extends Record<string, any>>(
   initialValues: T,
   onSubmit: (
     values: T,
-    formActions: { resetForm: () => void }
+    formActions: { reset: () => void }
   ) => void | Promise<void>,
   validate?: (values: T) => FormErrors<T>
 ): UseFormReturn<T> => {
   const [values, setValues] = useState<T>(initialValues);
   const [errors, setErrors] = useState<FormErrors<T>>({});
   const [touched, setTouched] = useState<FormTouched<T>>({});
-  const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
-  const [formError, setFormError] = useState<FormError | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [error, setError] = useState<FormError | null>(null);
 
   // Reset form to initial values
-  const resetForm = useCallback(() => {
+  const reset = useCallback(() => {
     setValues(initialValues);
     setErrors({});
     setTouched({});
-    setIsSubmitting(false);
-    setFormError(null);
+    setIsLoading(false);
+    setError(null);
   }, [initialValues]);
 
   // Set single field value
@@ -74,12 +81,12 @@ const useForm = <T extends Record<string, any>>(
         [name]: value,
       }));
 
-      // Clear form error when user starts typing
-      if (formError) {
-        setFormError(null);
+      // Clear error when user starts typing
+      if (error) {
+        setError(null);
       }
     },
-    [formError]
+    [error]
   );
 
   // Mark field as touched on blur
@@ -97,14 +104,14 @@ const useForm = <T extends Record<string, any>>(
         try {
           const validationErrors = validate(values);
           setErrors(validationErrors);
-        } catch (error) {
+        } catch (err) {
           const validationError = new FormError(
             "Validation error occurred",
-            error,
+            err,
             { field: name, values }
           );
           console.error(validationError);
-          setFormError(validationError);
+          setError(validationError);
         }
       }
     },
@@ -115,7 +122,7 @@ const useForm = <T extends Record<string, any>>(
   const handleSubmit = useCallback(
     async (event?: FormEvent<HTMLFormElement>) => {
       if (event) event.preventDefault();
-      setFormError(null);
+      setError(null);
 
       // Mark all fields as touched
       const touchedFields = Object.keys(values).reduce<FormTouched<T>>(
@@ -142,49 +149,49 @@ const useForm = <T extends Record<string, any>>(
           }
         }
 
-        setIsSubmitting(true);
+        setIsLoading(true);
 
         try {
-          await Promise.resolve(onSubmit(values, { resetForm }));
-        } catch (error) {
+          await Promise.resolve(onSubmit(values, { reset }));
+        } catch (err) {
           const submissionError = new FormError(
-            error instanceof Error ? error.message : "Form submission failed",
-            error,
+            err instanceof Error ? err.message : "Form submission failed",
+            err,
             { values }
           );
           console.error(submissionError);
-          setFormError(submissionError);
+          setError(submissionError);
         } finally {
-          setIsSubmitting(false);
+          setIsLoading(false);
         }
-      } catch (error) {
+      } catch (err) {
         const validationError = new FormError(
           "Validation error occurred",
-          error,
+          err,
           { values }
         );
         console.error(validationError);
-        setFormError(validationError);
-        setIsSubmitting(false);
+        setError(validationError);
+        setIsLoading(false);
       }
     },
-    [values, onSubmit, validate, resetForm]
+    [values, onSubmit, validate, reset]
   );
 
   // Compute if form is valid
-  const isValid = Object.keys(errors).length === 0 && formError === null;
+  const isValid = Object.keys(errors).length === 0 && error === null;
 
   return {
     values,
     errors,
     touched,
-    isSubmitting,
+    isLoading,
     isValid,
-    formError,
+    error,
     handleChange,
     handleBlur,
     handleSubmit,
-    resetForm,
+    reset,
     setFieldValue,
   };
 };

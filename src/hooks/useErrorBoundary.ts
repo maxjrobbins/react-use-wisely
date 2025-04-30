@@ -2,28 +2,31 @@ import { useState, useCallback } from "react";
 
 interface ErrorBoundaryState {
   error: Error | null;
-  hasError: boolean;
+  isError: boolean;
+}
+
+interface ErrorBoundaryResult {
+  error: Error | null;
+  isError: boolean;
+  setError: (error: Error) => void;
+  reset: () => void;
 }
 
 /**
  * Hook for declarative error handling within functional components
- * @returns {[ErrorBoundaryState, (error: Error) => void, () => void]} Error state, error setter, and reset function
+ * @returns {ErrorBoundaryResult} Object containing error state and control methods
  */
-function useErrorBoundary(): [
-  ErrorBoundaryState,
-  (error: Error) => void,
-  () => void
-] {
+function useErrorBoundary(): ErrorBoundaryResult {
   const [state, setState] = useState<ErrorBoundaryState>({
     error: null,
-    hasError: false,
+    isError: false,
   });
 
   // Function to set an error
-  const handleError = useCallback((error: Error) => {
+  const setError = useCallback((error: Error) => {
     setState({
       error,
-      hasError: true,
+      isError: true,
     });
   }, []);
 
@@ -31,11 +34,16 @@ function useErrorBoundary(): [
   const reset = useCallback(() => {
     setState({
       error: null,
-      hasError: false,
+      isError: false,
     });
   }, []);
 
-  return [state, handleError, reset];
+  return {
+    error: state.error,
+    isError: state.isError,
+    setError,
+    reset,
+  };
 }
 
 export default useErrorBoundary;

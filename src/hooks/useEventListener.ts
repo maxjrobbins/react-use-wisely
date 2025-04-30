@@ -1,4 +1,11 @@
-import { useRef, useEffect, RefObject } from "react";
+import { useRef, useEffect, RefObject, useState, useCallback } from "react";
+import { DOMError } from "./errors";
+
+interface EventListenerResult {
+  isSupported: boolean;
+  error: Error | null;
+  remove: () => void;
+}
 
 /**
  * Hook for adding event listeners with proper cleanup
@@ -7,12 +14,13 @@ import { useRef, useEffect, RefObject } from "react";
  * @param {K} eventName - Name of the event to listen for
  * @param {(event: any) => void} handler - Event handler function
  * @param {RefObject<T> | Window | Document} element - Element to attach the event to (defaults to window)
+ * @returns {EventListenerResult} Object containing support status, error state, and remove method
  */
 function useEventListener<K extends keyof WindowEventMap>(
   eventName: K,
   handler: (event: WindowEventMap[K]) => void,
   element?: undefined
-): void;
+): EventListenerResult;
 
 function useEventListener<
   K extends keyof HTMLElementEventMap,
@@ -21,7 +29,7 @@ function useEventListener<
   eventName: K,
   handler: (event: HTMLElementEventMap[K]) => void,
   element: RefObject<T>
-): void;
+): EventListenerResult;
 
 function useEventListener<
   K extends keyof DocumentEventMap,
@@ -30,7 +38,7 @@ function useEventListener<
   eventName: K,
   handler: (event: DocumentEventMap[K]) => void,
   element: RefObject<T> | Document
-): void;
+): EventListenerResult;
 
 function useEventListener<
   KW extends keyof WindowEventMap,
@@ -47,17 +55,49 @@ function useEventListener<
       | Event
   ) => void,
   element?: RefObject<T> | Window | Document
-) {
-  // Create a ref that stores the handler
+): EventListenerResult {
   const savedHandler = useRef(handler);
+  const [error, setError] = useState<Error | null>(null);
+  const [isSupported, setIsSupported] = useState(false);
 
   useEffect(() => {
-    // Update ref.current value if handler changes
     savedHandler.current = handler;
   }, [handler]);
 
   useEffect(() => {
-    // Define the listening target
+    try {
+      const targetElement: T | Window | Document =
+        element instanceof Window
+          ? window
+          : element instanceof Document
+          ? document
+          : element?.current || window;
+
+      if (!targetElement || !targetElement.addEventListener) {
+        setIsSupported(false);
+        setError(
+          new DOMError("Target element does not support event listeners")
+        );
+        return;
+      }
+
+      setIsSupported(true);
+      setError(null);
+
+      const eventListener: typeof handler = (event) =>
+        savedHandler.current(event);
+      targetElement.addEventListener(eventName, eventListener);
+
+      return () => {
+        targetElement.removeEventListener(eventName, eventListener);
+      };
+    } catch (err) {
+      setIsSupported(false);
+      setError(new DOMError("Failed to add event listener", err));
+    }
+  }, [eventName, element]);
+
+  const remove = useCallback(() => {
     const targetElement: T | Window | Document =
       element instanceof Window
         ? window
@@ -65,22 +105,16 @@ function useEventListener<
         ? document
         : element?.current || window;
 
-    if (!(targetElement && targetElement.addEventListener)) {
-      return;
+    if (targetElement && targetElement.removeEventListener) {
+      targetElement.removeEventListener(eventName, savedHandler.current);
     }
-
-    // Create event listener that calls handler function stored in ref
-    const eventListener: typeof handler = (event) =>
-      savedHandler.current(event);
-
-    // Add event listener
-    targetElement.addEventListener(eventName, eventListener);
-
-    // Remove event listener on cleanup
-    return () => {
-      targetElement.removeEventListener(eventName, eventListener);
-    };
   }, [eventName, element]);
+
+  return {
+    isSupported,
+    error,
+    remove,
+  };
 }
 
 export default useEventListener;
