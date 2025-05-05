@@ -14,12 +14,14 @@ interface EventListenerResult {
  * @param {K} eventName - Name of the event to listen for
  * @param {(event: any) => void} handler - Event handler function
  * @param {RefObject<T> | Window | Document} element - Element to attach the event to (defaults to window)
+ * @param {AddEventListenerOptions} options - Options for the event listener
  * @returns {EventListenerResult} Object containing support status, error state, and remove method
  */
 function useEventListener<K extends keyof WindowEventMap>(
   eventName: K,
   handler: (event: WindowEventMap[K]) => void,
-  element?: undefined
+  element?: undefined,
+  options?: AddEventListenerOptions
 ): EventListenerResult;
 
 function useEventListener<
@@ -28,7 +30,8 @@ function useEventListener<
 >(
   eventName: K,
   handler: (event: HTMLElementEventMap[K]) => void,
-  element: RefObject<T>
+  element: RefObject<T>,
+  options?: AddEventListenerOptions
 ): EventListenerResult;
 
 function useEventListener<
@@ -37,7 +40,8 @@ function useEventListener<
 >(
   eventName: K,
   handler: (event: DocumentEventMap[K]) => void,
-  element: RefObject<T> | Document
+  element: RefObject<T> | Document,
+  options?: AddEventListenerOptions
 ): EventListenerResult;
 
 function useEventListener<
@@ -54,7 +58,8 @@ function useEventListener<
       | DocumentEventMap[KD]
       | Event
   ) => void,
-  element?: RefObject<T> | Window | Document
+  element?: RefObject<T> | Window | Document,
+  options?: AddEventListenerOptions
 ): EventListenerResult {
   const savedHandler = useRef(handler);
   const [error, setError] = useState<Error | null>(null);
@@ -86,16 +91,16 @@ function useEventListener<
 
       const eventListener: typeof handler = (event) =>
         savedHandler.current(event);
-      targetElement.addEventListener(eventName, eventListener);
+      targetElement.addEventListener(eventName, eventListener, options);
 
       return () => {
-        targetElement.removeEventListener(eventName, eventListener);
+        targetElement.removeEventListener(eventName, eventListener, options);
       };
     } catch (err) {
       setIsSupported(false);
       setError(new DOMError("Failed to add event listener", err));
     }
-  }, [eventName, element]);
+  }, [eventName, element, options]);
 
   const remove = useCallback(() => {
     const targetElement: T | Window | Document =
@@ -106,9 +111,11 @@ function useEventListener<
         : element?.current || window;
 
     if (targetElement && targetElement.removeEventListener) {
-      targetElement.removeEventListener(eventName, savedHandler.current);
+      const eventListener: typeof handler = (event) =>
+        savedHandler.current(event);
+      targetElement.removeEventListener(eventName, eventListener, options);
     }
-  }, [eventName, element]);
+  }, [eventName, element, options]);
 
   return {
     isSupported,

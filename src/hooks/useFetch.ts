@@ -1,277 +1,198 @@
-import { useState, useEffect, useRef, useCallback } from "react";
-import { FetchError } from "./errors";
+import { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import { FetchError, NetworkError } from "./errors";
 
-interface UseFetchOptions extends RequestInit {
+export interface UseFetchOptions extends RequestInit {
   cachePolicy?: "no-cache" | "cache-first" | "cache-only" | "network-only";
   retries?: number;
   retryDelay?: number;
   dedupingInterval?: number;
 }
 
-interface FetchState<T> {
+interface UseFetchResult<T> {
   data: T | null;
-  error: FetchError | null;
-  loading: boolean;
-  status: number | null;
+  error: Error | null;
+  isLoading: boolean;
+  status: "idle" | "loading" | "success" | "error";
   timestamp: number | null;
+  refetch: (overrideOptions?: Partial<UseFetchOptions>) => Promise<void>;
+  abort: () => void;
 }
 
-type FetchResponse<T> = FetchState<T> & {
-  refetch: (options?: Partial<UseFetchOptions>) => Promise<void>;
-  abort: () => void;
-};
+const defaultCache = new Map<string, Omit<UseFetchResult<any>, 'refetch' | 'abort'>>();
 
-/**
- * Hook for data fetching with loading/error states and caching
- * @template T The type of data returned by the API
- * @param {string} url - The URL to fetch
- * @param {UseFetchOptions} options - Fetch options including cache policy
- * @returns {FetchResponse<T>} - Fetch state and control functions
- */
-function useFetch<T = any>(
-  url: string,
-  options: UseFetchOptions = {}
-): FetchResponse<T> {
-  // Extract options
+function useFetch<T = any>(url: string, options: UseFetchOptions = {}): UseFetchResult<T> {
   const {
     cachePolicy = "no-cache",
     retries = 0,
     retryDelay = 1000,
     dedupingInterval = 200,
-    ...fetchOptions
+    method = "GET",
+    ...rest
   } = options;
 
-  // State for the fetch operation
-  const [state, setState] = useState<FetchState<T>>({
-    data: null,
-    error: null,
-    loading: false,
-    status: null,
-    timestamp: null,
-  });
+  const [data, setData] = useState<T | null>(null);
+  const [error, setError] = useState<Error | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [timestamp, setTimestamp] = useState<number | null>(null);
 
-  // Cache storage
-  const cache = useRef<Map<string, FetchState<T>>>(new Map());
+  const abortRef = useRef<AbortController | null>(null);
+  const retryRef = useRef<number>(0);
+  const retryTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastFetchTimeRef = useRef<number>(0);
+  const isMountedRef = useRef(true);
 
-  // AbortController reference
-  const abortControllerRef = useRef<AbortController | null>(null);
+  const optionsRef = useRef({ cachePolicy, retries, retryDelay, dedupingInterval, method, ...rest });
+  optionsRef.current = { cachePolicy, retries, retryDelay, dedupingInterval, method, ...rest };
 
-  // Track last request timestamp to prevent race conditions
-  const lastRequestTimestampRef = useRef<number>(0);
+  const cacheKey = useMemo(() => {
+    const body = rest.body ? JSON.stringify(rest.body) : "";
+    return `${method}:${url}:${body}`;
+  }, [url, method, rest.body]);
 
-  // Track retry attempts
-  const retryAttemptsRef = useRef<number>(0);
+  const refetch = useCallback(async (override: Partial<UseFetchOptions> = {}) => {
+    const controller = new AbortController();
+    abortRef.current = controller;
+    const finalOpts: UseFetchOptions = {
+      ...optionsRef.current,
+      ...override,
+      method: optionsRef.current.method,
+      signal: controller.signal,
+    };
 
-  // Unique key for this request (url + serialized body)
-  const getCacheKey = useCallback(() => {
-    const body = fetchOptions.body ? JSON.stringify(fetchOptions.body) : "";
-    return `${url}:${body}`;
-  }, [url, fetchOptions.body]);
+    const now = Date.now();
+    lastFetchTimeRef.current = now;
 
-  // Function to perform the fetch
-  const fetchData = useCallback(
-    async (overrideOptions: Partial<UseFetchOptions> = {}) => {
-      const requestTimestamp = Date.now();
-      lastRequestTimestampRef.current = requestTimestamp;
+    const effectiveCachePolicy = override.cachePolicy ?? optionsRef.current.cachePolicy;
+    const cached = defaultCache.get(cacheKey);
 
-      // Combine original options with overrides
-      const mergedOptions = {
-        ...options,
-        ...overrideOptions,
-        ...fetchOptions,
-        ...overrideOptions,
-      };
+    if (effectiveCachePolicy !== "no-cache") {
+      if (effectiveCachePolicy === "cache-only" && cached) {
+        if (!controller.signal.aborted && isMountedRef.current) {
+          setData(cached.data);
+          setError(cached.error);
+          setIsLoading(false);
+          setStatus("success");
+          setTimestamp(cached.timestamp);
+        }
+        return;
+      }
 
-      const cacheKey = getCacheKey();
-
-      // Create new abort controller for this request
-      abortControllerRef.current = new AbortController();
-      const { signal } = abortControllerRef.current;
-
-      // Check cache based on policy
-      if (
-        (mergedOptions.cachePolicy === "cache-first" ||
-          mergedOptions.cachePolicy === "cache-only") &&
-        cache.current.has(cacheKey)
-      ) {
-        const cachedData = cache.current.get(cacheKey)!;
-        setState(cachedData);
-
-        // If cache-only, don't fetch
-        if (mergedOptions.cachePolicy === "cache-only") {
-          return;
+      if (effectiveCachePolicy === "cache-first" && cached) {
+        if (!controller.signal.aborted && isMountedRef.current) {
+          setData(cached.data);
+          setError(cached.error);
+          setIsLoading(false);
+          setStatus("success");
+          setTimestamp(cached.timestamp);
         }
 
-        // If cache-first, check if we should re-fetch based on deduping interval
         if (
-          mergedOptions.cachePolicy === "cache-first" &&
-          cachedData.timestamp &&
-          Date.now() - cachedData.timestamp <
-            (mergedOptions.dedupingInterval || dedupingInterval)
+            cached.timestamp &&
+            now - cached.timestamp < (override.dedupingInterval ?? optionsRef.current.dedupingInterval)
         ) {
           return;
         }
       }
 
-      // Skip fetch for cache-only policy if no cache exists
-      if (
-        mergedOptions.cachePolicy === "cache-only" &&
-        !cache.current.has(cacheKey)
-      ) {
-        setState({
-          data: null,
-          error: new FetchError(
-            "No cached data available and cache-only policy specified",
-            null,
-            {
-              url,
-              cachePolicy: mergedOptions.cachePolicy,
-            }
-          ),
-          loading: false,
-          status: null,
-          timestamp: Date.now(),
-        });
+      if (effectiveCachePolicy === "cache-only" && !cached) {
+        if (!controller.signal.aborted && isMountedRef.current) {
+          setError(new NetworkError("No cached data available", undefined, { url }));
+          setData(null);
+          setIsLoading(false);
+          setStatus("error");
+          setTimestamp(now);
+        }
         return;
       }
+    }
 
-      // Set loading state
-      setState((prev) => ({
-        ...prev,
-        loading: true,
-        error: null,
-      }));
+    if (!controller.signal.aborted && isMountedRef.current) {
+      setIsLoading(true);
+      setStatus("loading");
+      setError(null);
+    }
 
-      try {
-        // Perform the fetch
-        const response = await fetch(url, {
-          ...mergedOptions,
-          signal,
+    try {
+      const res = await fetch(url, finalOpts);
+      if (!res.ok) {
+        throw new FetchError(`HTTP ${res.status}`, undefined, {
+          status: res.status,
+          statusText: res.statusText,
+          url,
         });
+      }
 
-        // If this isn't the most recent request, ignore the result
-        if (lastRequestTimestampRef.current !== requestTimestamp) {
-          return;
-        }
-
-        if (!response.ok) {
-          throw new FetchError(`HTTP error! Status: ${response.status}`, null, {
-            status: response.status,
-            statusText: response.statusText,
-            url,
-          });
-        }
-
-        // Parse the response
-        let data: T;
-        const contentType = response.headers.get("content-type");
-        if (contentType && contentType.includes("application/json")) {
-          data = await response.json();
-        } else {
-          // Handle text or other response types
-          const text = await response.text();
-          try {
-            data = JSON.parse(text) as T;
-          } catch {
-            data = text as unknown as T;
-          }
-        }
-
-        const newState: FetchState<T> = {
-          data,
-          error: null,
-          loading: false,
-          status: response.status,
-          timestamp: Date.now(),
-        };
-
-        // Update state
-        setState(newState);
-
-        // Update cache
-        if (mergedOptions.cachePolicy !== "no-cache") {
-          cache.current.set(cacheKey, newState);
-        }
-
-        // Reset retry counter on success
-        retryAttemptsRef.current = 0;
-      } catch (error) {
-        // If this isn't the most recent request, ignore the error
-        if (lastRequestTimestampRef.current !== requestTimestamp) {
-          return;
-        }
-
-        // Don't handle aborted requests as errors
-        if (error instanceof DOMException && error.name === "AbortError") {
-          return;
-        }
-
-        // Handle error and retry logic
-        const fetchError =
-          error instanceof FetchError
-            ? error
-            : new FetchError("Failed to fetch", error, { url });
-
-        // Check if we should retry
-        if (retryAttemptsRef.current < (mergedOptions.retries || retries)) {
-          retryAttemptsRef.current++;
-          setTimeout(() => {
-            // Only retry if this is still the most recent request
-            if (lastRequestTimestampRef.current === requestTimestamp) {
-              fetchData(mergedOptions);
-            }
-          }, (mergedOptions.retryDelay || retryDelay) * retryAttemptsRef.current);
-        } else {
-          setState({
-            data: null,
-            error: fetchError,
-            loading: false,
-            status: fetchError.status || null,
-            timestamp: Date.now(),
-          });
-
-          // Reset retry counter
-          retryAttemptsRef.current = 0;
+      let parsedData: T;
+      const contentType = res.headers.get("content-type");
+      if (contentType?.includes("application/json")) {
+        parsedData = await res.json();
+      } else {
+        const text = await res.text();
+        try {
+          parsedData = JSON.parse(text);
+        } catch {
+          parsedData = text as unknown as T;
         }
       }
-    },
-    [
-      url,
-      options,
-      fetchOptions,
-      getCacheKey,
-      dedupingInterval,
-      retries,
-      retryDelay,
-    ]
-  );
 
-  // Abort function
-  const abort = useCallback(() => {
-    if (abortControllerRef.current) {
-      abortControllerRef.current.abort();
-      setState((prev) => ({
-        ...prev,
-        loading: false,
-      }));
+      if (!controller.signal.aborted && isMountedRef.current) {
+        setData(parsedData);
+        setIsLoading(false);
+        setError(null);
+        setStatus("success");
+        setTimestamp(Date.now());
+
+        if (effectiveCachePolicy !== "no-cache") {
+          defaultCache.set(cacheKey, {
+            data: parsedData,
+            error: null,
+            isLoading: false,
+            status: "success",
+            timestamp: Date.now(),
+          });
+        }
+
+        retryRef.current = 0;
+      }
+    } catch (err: any) {
+      if (controller.signal.aborted) return;
+
+      const canRetry = retryRef.current < (override.retries ?? optionsRef.current.retries);
+      if (canRetry) {
+        retryRef.current++;
+        retryTimeoutRef.current = setTimeout(() => {
+          refetch(override);
+        }, (override.retryDelay ?? optionsRef.current.retryDelay) * retryRef.current);
+      } else if (isMountedRef.current) {
+        const errorObj =
+            err instanceof Error ? err : new NetworkError("Fetch failed", undefined, { cause: err, url });
+        setData(null);
+        setIsLoading(false);
+        setError(errorObj);
+        setStatus("error");
+        setTimestamp(Date.now());
+        retryRef.current = 0;
+      }
     }
+  }, [url, method, cacheKey]);
+
+  const abort = useCallback(() => {
+    if (abortRef.current) abortRef.current.abort();
+    if (retryTimeoutRef.current) clearTimeout(retryTimeoutRef.current);
+    setIsLoading(false);
   }, []);
 
-  // Effect to fetch data on mount or url/options change
   useEffect(() => {
-    fetchData();
+    isMountedRef.current = true;
+    refetch();
     return () => {
-      // Clean up by aborting any in-flight requests
+      isMountedRef.current = false;
       abort();
     };
-  }, [fetchData, abort]);
+  }, [refetch, abort]);
 
-  // Return state and refetch function
-  return {
-    ...state,
-    refetch: fetchData,
-    abort,
-  };
+  return { data, error, isLoading, status, timestamp, refetch, abort };
 }
 
 export default useFetch;

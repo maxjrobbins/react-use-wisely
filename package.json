@@ -9,33 +9,27 @@
   "exports": {
     ".": {
       "import": "./dist/index.esm.js",
-      "require": "./dist/index.js",
-      "types": "./dist/types/index.d.ts"
+      "require": "./dist/index.js"
     },
     "./hooks/*": {
       "import": "./dist/hooks/*.esm.js",
-      "require": "./dist/hooks/*.js",
-      "types": "./dist/types/hooks/*.d.ts"
+      "require": "./dist/hooks/*.js"
     },
     "./categories/browser": {
       "import": "./dist/categories/browser.esm.js",
-      "require": "./dist/categories/browser.js",
-      "types": "./dist/types/categories/browser.d.ts"
+      "require": "./dist/categories/browser.js"
     },
     "./categories/dom": {
       "import": "./dist/categories/dom.esm.js",
-      "require": "./dist/categories/dom.js",
-      "types": "./dist/types/categories/dom.d.ts"
+      "require": "./dist/categories/dom.js"
     },
     "./categories/utilities": {
       "import": "./dist/categories/utilities.esm.js",
-      "require": "./dist/categories/utilities.js",
-      "types": "./dist/types/categories/utilities.d.ts"
+      "require": "./dist/categories/utilities.js"
     },
     "./categories/async": {
       "import": "./dist/categories/async.esm.js",
-      "require": "./dist/categories/async.js",
-      "types": "./dist/types/categories/async.d.ts"
+      "require": "./dist/categories/async.js"
     }
   },
   "files": [
