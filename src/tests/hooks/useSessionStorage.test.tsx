@@ -198,7 +198,7 @@ describe("useSessionStorage", () => {
 
     expect(result.current.value).toBe("fallback-value");
     expect(result.current.error).not.toBeNull();
-    expect(result.current.error?.message).toContain(
+    expect(result.current.error?.message).toBe(
       "Error reading from sessionStorage"
     );
   });
