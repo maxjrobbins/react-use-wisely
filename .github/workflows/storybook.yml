@@ -47,6 +47,7 @@ jobs:
         uses: actions/configure-pages@v4
         with:
           static_site_generator: storybook
+          enablement: true
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

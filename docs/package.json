@@ -1,12 +1,11 @@
 {
-  "name": "docs",
+  "name": "react-use-wisely-docs",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Documentation for react-use-wisely",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test-storybook": "test-storybook"
   },
   "keywords": [],
   "author": "",
@@ -14,12 +13,13 @@
   "type": "commonjs",
   "dependencies": {
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "react-use-wisely": "file:.."
   },
   "devDependencies": {
-    "@chromatic-com/storybook": "^3.2.6",
     "@storybook/addon-a11y": "^8.6.12",
     "@storybook/addon-essentials": "^8.6.12",
+    "@storybook/addon-interactions": "^8.6.12",
     "@storybook/addon-links": "^8.6.12",
     "@storybook/blocks": "^8.6.12",
     "@storybook/react": "^8.6.12",

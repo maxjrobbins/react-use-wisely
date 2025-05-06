@@ -8,10 +8,15 @@ const config = {
     "@storybook/addon-essentials",
     "@storybook/addon-a11y",
     "@storybook/addon-links",
+    "@storybook/addon-interactions",
   ],
   framework: {
     name: "@storybook/react-vite",
-    options: {},
+    options: {
+      builder: {
+        viteConfigPath: "docs/vite.config.ts",
+      },
+    },
   },
   docs: {
     autodocs: true,
@@ -21,15 +26,17 @@ const config = {
   core: {
     disableTelemetry: true,
   },
-  build: {
-    test: {
-      disabledAddons: ["@storybook/addon-docs"],
-    },
+  features: {
+    storyStoreV7: true,
   },
   viteFinal: async (config) => {
     return {
       ...config,
       base: "./",
+      build: {
+        ...config.build,
+        sourcemap: true,
+      },
     };
   },
 };
