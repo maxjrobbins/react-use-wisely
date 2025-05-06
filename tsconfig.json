@@ -15,9 +15,9 @@
     "noEmit": false,
     "jsx": "react",
     "declaration": true,
-    "declarationDir": "dist/types",
+    "declarationDir": "dist",
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "sourceMap": true,
     "types": ["jest", "node", "@testing-library/jest-dom"],
     "composite": true

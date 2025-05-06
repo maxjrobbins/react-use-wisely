@@ -15,7 +15,9 @@ const hookFiles = fs
     (file) =>
       !file.includes("index.") &&
       !file.includes(".test.") &&
-      !file.includes(".d.ts")
+      !file.includes(".d.ts") &&
+      file.endsWith(".ts") &&
+      fs.statSync(path.join(hooksDir, file)).isFile()
   )
   .map((file) => `src/hooks/${file}`);
 
@@ -41,6 +43,8 @@ const mainBundle = {
     typescript({
       tsconfig: "./tsconfig.json",
       exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+      declaration: false,
+      declarationDir: null,
     }),
     babel({
       babelHelpers: "bundled",
@@ -81,6 +85,8 @@ const individualHookBundles = hookFiles.map((input) => {
       typescript({
         tsconfig: "./tsconfig.json",
         exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+        declaration: false,
+        declarationDir: null,
       }),
       babel({
         babelHelpers: "bundled",
@@ -122,6 +128,8 @@ const categoryBundles = categories.map((category) => {
       typescript({
         tsconfig: "./tsconfig.json",
         exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
+        declaration: false,
+        declarationDir: null,
       }),
       babel({
         babelHelpers: "bundled",
