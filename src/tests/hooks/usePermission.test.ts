@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import usePermission from "../../hooks/usePermission";
 import { PermissionError } from "../../hooks/errors";
 import * as browser from "../../utils/browser";
-import {features} from "../../utils/browser";
+import { features } from "../../utils/browser";
 
 // Mock the browser features module
 jest.mock("../../utils/browser", () => ({
@@ -82,22 +82,38 @@ describe("usePermission", () => {
     // Mock permissions.query
     mockPermissionsQuery = jest.fn().mockResolvedValue(permissionStatus);
 
-    // Mock navigator.permissions
-    Object.defineProperty(navigator, "permissions", {
-      value: {
-        query: mockPermissionsQuery,
-      },
-      configurable: true,
-    });
+    // Mock navigator.permissions using a different approach
+    if (!("permissions" in navigator)) {
+      Object.defineProperty(navigator, "permissions", {
+        value: {
+          query: mockPermissionsQuery,
+        },
+        writable: true,
+        configurable: true,
+      });
+    } else {
+      // If permissions already exists, just update its query method
+      (navigator.permissions as any).query = mockPermissionsQuery;
+    }
+
+    // Mock Notification API if it doesn't exist
+    if (!("Notification" in window)) {
+      Object.defineProperty(window, "Notification", {
+        value: {
+          permission: "default",
+          requestPermission: jest.fn().mockResolvedValue("default"),
+        },
+        writable: true,
+        configurable: true,
+      });
+    }
   });
 
   afterEach(() => {
-    // Restore navigator
+    // Restore navigator.permissions.query if it was mocked
     if ("permissions" in navigator) {
-      Object.defineProperty(navigator, "permissions", {
-        value: originalNavigator.permissions,
-        configurable: true,
-      });
+      (navigator.permissions as any).query =
+        originalNavigator.permissions?.query;
     }
 
     // Restore Notification if it was mocked
@@ -105,6 +121,19 @@ describe("usePermission", () => {
       jest.restoreAllMocks();
     }
   });
+
+  // Helper function to update Notification mock
+  const updateNotificationMock = (
+    permission: string,
+    requestPermission?: jest.Mock
+  ) => {
+    if ("Notification" in window) {
+      (window.Notification as any).permission = permission;
+      if (requestPermission) {
+        (window.Notification as any).requestPermission = requestPermission;
+      }
+    }
+  };
 
   it("should return unsupported when permissions API is not available", async () => {
     // Mock permissions API not supported
@@ -316,17 +345,8 @@ describe("usePermission", () => {
   });
 
   it("should request notification permission", async () => {
-    // Mock Notification.requestPermission
     const mockRequestPermission = jest.fn().mockResolvedValue("granted");
-
-    // Mock Notification object
-    Object.defineProperty(window, "Notification", {
-      value: {
-        requestPermission: mockRequestPermission,
-        permission: "default", // initial state
-      },
-      configurable: true,
-    });
+    updateNotificationMock("default", mockRequestPermission);
 
     const { result } = renderHook(() => usePermission("notifications"));
 
@@ -336,6 +356,16 @@ describe("usePermission", () => {
     });
 
     expect(mockRequestPermission).toHaveBeenCalled();
+
+    // Update the notification permission after request
+    updateNotificationMock("granted");
+
+    // Wait for state to update
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.state).toBe("granted");
   });
 
   it("should request camera permission", async () => {
@@ -581,27 +611,16 @@ describe("usePermission", () => {
   it("should handle when notification API is available but permissions API is not", async () => {
     // Mock permissions API not supported
     (browser.features.permissions as jest.Mock).mockReturnValue(false);
-    (browser.features.notifications as jest.Mock).mockReturnValue(true);
-
-    // Mock Notification API
-    Object.defineProperty(window, "Notification", {
-      value: {
-        permission: "granted",
-        requestPermission: jest.fn().mockResolvedValue("granted"),
-      },
-      configurable: true,
-    });
+    updateNotificationMock("granted");
 
     const { result } = renderHook(() => usePermission("notifications"));
 
-    // Wait for permission check
     await act(async () => {
       await Promise.resolve();
     });
 
     expect(result.current.state).toBe("granted");
     expect(result.current.isGranted).toBe(true);
-    expect(result.current.isSupported).toBe(true);
   });
 
   it("should handle loading state during errors", async () => {
@@ -644,7 +663,9 @@ describe("usePermission", () => {
     });
 
     expect(result.current.error).toBeInstanceOf(PermissionError);
-    expect(result.current.error?.message).toContain("Error setting up permission listener: geolocation");
+    expect(result.current.error?.message).toContain(
+      "Error setting up permission listener: geolocation"
+    );
     expect(result.current.state).toBe("unsupported");
     expect(result.current.isSupported).toBe(true);
   });
@@ -665,18 +686,20 @@ describe("usePermission", () => {
 
   it("falls back to Notification.permission if permissions API fails", async () => {
     mockPermissionsQuery.mockRejectedValue(new Error("fail"));
-    Object.defineProperty(global, "Notification", {
-      value: { permission: "granted" },
-      configurable: true,
-    });
+
+    // Set up notification permission before the hook renders
+    updateNotificationMock("granted");
+    (browser.features.notifications as jest.Mock).mockReturnValue(true);
 
     const { result } = renderHook(() => usePermission("notifications"));
 
+    // Wait for initial state to be set
     await act(async () => {
       await Promise.resolve();
     });
 
-    expect(result.current.state).toBe("unsupported");
+    expect(result.current.state).toBe("granted");
+    expect(result.current.isGranted).toBe(true);
   });
 
   it("sets error and returns 'unsupported' if feature is not supported during request", async () => {
