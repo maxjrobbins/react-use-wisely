@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/ci.yml)
 [![Storybook](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml/badge.svg)](https://github.com/maxjrobbins/react-use-wisely/actions/workflows/storybook.yml)
+[![Storybook Deployment](https://img.shields.io/badge/Storybook-Deployed-blue)](https://maxjrobbins.github.io/react-use-wisely)
 [![npm version](https://img.shields.io/npm/v/react-use-wisely.svg)](https://www.npmjs.com/package/react-use-wisely)
 [![Test Coverage](https://img.shields.io/badge/coverage-95%25-brightgreen.svg)](https://github.com/maxjrobbins/react-use-wisely)
 

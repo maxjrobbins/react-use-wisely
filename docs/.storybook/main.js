@@ -18,6 +18,20 @@ const config = {
     defaultName: "Documentation",
   },
   staticDirs: ["../public"],
+  core: {
+    disableTelemetry: true,
+  },
+  build: {
+    test: {
+      disabledAddons: ["@storybook/addon-docs"],
+    },
+  },
+  viteFinal: async (config) => {
+    return {
+      ...config,
+      base: "./",
+    };
+  },
 };
 
 export default config;
