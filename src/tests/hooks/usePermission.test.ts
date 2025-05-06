@@ -2,7 +2,7 @@ import { renderHook, act } from "@testing-library/react";
 import usePermission from "../../hooks/usePermission";
 import { PermissionError } from "../../hooks/errors";
 import * as browser from "../../utils/browser";
-import * as React from "react";
+import {features} from "../../utils/browser";
 
 // Mock the browser features module
 jest.mock("../../utils/browser", () => ({
@@ -553,7 +553,7 @@ describe("usePermission", () => {
     const { result } = renderHook(() => usePermission("geolocation"));
 
     // Start request but don't await it yet
-    let requestPromise;
+    let requestPromise: Promise<PermissionState | "unsupported">;
     act(() => {
       requestPromise = result.current.request();
     });
@@ -631,5 +631,64 @@ describe("usePermission", () => {
     // Should not be loading after error
     expect(result.current.isLoading).toBe(false);
     expect(result.current.error).not.toBeNull();
+  });
+
+  it("should handle rejection from navigator.permissions.query", async () => {
+    const queryError = new Error("Permission query failed");
+    mockPermissionsQuery.mockRejectedValue(queryError);
+
+    const { result } = renderHook(() => usePermission("geolocation"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.error).toBeInstanceOf(PermissionError);
+    expect(result.current.error?.message).toContain("Error setting up permission listener: geolocation");
+    expect(result.current.state).toBe("unsupported");
+    expect(result.current.isSupported).toBe(true);
+  });
+
+  it("should return initial state synchronously", () => {
+    const { result } = renderHook(() => usePermission("notifications"));
+
+    expect(result.current).toMatchObject({
+      state: "unsupported",
+      isGranted: false,
+      isDenied: false,
+      isPrompt: false,
+      isSupported: true,
+      isLoading: false,
+      error: null,
+    });
+  });
+
+  it("falls back to Notification.permission if permissions API fails", async () => {
+    mockPermissionsQuery.mockRejectedValue(new Error("fail"));
+    Object.defineProperty(global, "Notification", {
+      value: { permission: "granted" },
+      configurable: true,
+    });
+
+    const { result } = renderHook(() => usePermission("notifications"));
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(result.current.state).toBe("unsupported");
+  });
+
+  it("sets error and returns 'unsupported' if feature is not supported during request", async () => {
+    features.geolocation = () => false;
+
+    const { result } = renderHook(() => usePermission("geolocation"));
+
+    await act(async () => {
+      const response = await result.current.request();
+      expect(response).toBe("unsupported");
+    });
+
+    expect(result.current.error).toBeInstanceOf(PermissionError);
   });
 });

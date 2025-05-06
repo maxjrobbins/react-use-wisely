@@ -1,5 +1,5 @@
 import React, { FC, useRef } from "react";
-import { render, screen } from "@testing-library/react";
+import { render, screen, act, renderHook } from "@testing-library/react";
 import useScrollPosition from "../../hooks/useScrollPosition";
 
 // Mock Date.now to return a stable value
@@ -167,5 +167,72 @@ describe("useScrollPosition", () => {
       // Delete the property if it didn't exist before
       delete (window as any).pageXOffset;
     }
+  });
+
+
+  it("reads scroll position from passed element", () => {
+    const div = document.createElement("div");
+    div.scrollTop = 150;
+    div.scrollLeft = 75;
+
+    const ref = { current: div };
+
+    const { result } = renderHook(() => useScrollPosition({ element: ref }));
+
+    expect(result.current.x).toBe(75);
+    expect(result.current.y).toBe(150);
+  });
+
+  it("skips scroll updates when document is hidden", () => {
+    Object.defineProperty(document, "hidden", { value: true, configurable: true });
+
+    const { result } = renderHook(() =>
+        useScrollPosition({ skipWhenHidden: true })
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+    });
+
+    expect(result.current.x).toBe(0);
+    expect(result.current.y).toBe(0);
+  });
+
+  jest.useFakeTimers();
+
+  it("updates scroll position after wait time when scrolling", () => {
+    window.scrollTo(0, 200);
+    Object.defineProperty(window, "pageYOffset", { value: 200 });
+    Object.defineProperty(window, "pageXOffset", { value: 50 });
+
+    const { result } = renderHook(() =>
+        useScrollPosition({ wait: 100 })
+    );
+
+    act(() => {
+      window.dispatchEvent(new Event("scroll"));
+      jest.advanceTimersByTime(100);
+    });
+
+    expect(result.current.x).toBe(50);
+    expect(result.current.y).toBe(200);
+  });
+
+  it("sets error if getScrollPosition throws", () => {
+    const brokenRef = {
+      current: {
+        get scrollLeft() {
+          throw new Error("scrollLeft error");
+        },
+      },
+    };
+
+    const { result } = renderHook(() =>
+        useScrollPosition({ element: brokenRef })
+    );
+
+    expect(result.current.error).toBeInstanceOf(Error);
+    expect(result.current.x).toBe(0);
+    expect(result.current.y).toBe(0);
   });
 });
