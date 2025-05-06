@@ -1099,11 +1099,7 @@ function MyComponent() {
 Import related hooks by category:
 
 ```jsx
-import {
-  useOnline,
-  useNetworkSpeed,
-  usePermission,
-} from "react-use-wisely/categories/browser";
+import { useOnline, usePermission } from "react-use-wisely/categories/browser";
 import {
   useLocalStorage,
   useDebounce,

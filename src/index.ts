@@ -21,7 +21,6 @@ export { default as useSessionStorage } from "./hooks/useSessionStorage";
 export { default as usePageVisibility } from "./hooks/usePageVisibility";
 export { default as usePermission } from "./hooks/usePermission";
 export { default as useSpeechRecognition } from "./hooks/useSpeechRecognition";
-export { default as useNetworkSpeed } from "./hooks/useNetworkSpeed";
 export { default as useErrorBoundary } from "./hooks/useErrorBoundary";
 
 export type {

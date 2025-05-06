@@ -4,7 +4,6 @@
  */
 
 export { default as useOnline } from "../hooks/useOnline";
-export { default as useNetworkSpeed } from "../hooks/useNetworkSpeed";
 export { default as useClipboard } from "../hooks/useClipboard";
 export { default as useGeolocation } from "../hooks/useGeolocation";
 export { default as usePermission } from "../hooks/usePermission";
