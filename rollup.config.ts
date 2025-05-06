@@ -29,11 +29,13 @@ const mainBundle = {
       file: "dist/index.js",
       format: "cjs",
       sourcemap: true,
+      exports: "named",
     },
     {
       file: "dist/index.esm.js",
       format: "esm",
       sourcemap: true,
+      exports: "named",
     },
   ],
   plugins: [
@@ -43,8 +45,7 @@ const mainBundle = {
     typescript({
       tsconfig: "./tsconfig.json",
       exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
-      declaration: false,
-      declarationDir: null,
+      outputToFilesystem: true,
     }),
     babel({
       babelHelpers: "bundled",
@@ -71,11 +72,13 @@ const individualHookBundles = hookFiles.map((input) => {
         file: `dist/hooks/${fileName}.js`,
         format: "cjs",
         sourcemap: true,
+        exports: "named",
       },
       {
         file: `dist/hooks/${fileName}.esm.js`,
         format: "esm",
         sourcemap: true,
+        exports: "named",
       },
     ],
     plugins: [
@@ -85,8 +88,7 @@ const individualHookBundles = hookFiles.map((input) => {
       typescript({
         tsconfig: "./tsconfig.json",
         exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
-        declaration: false,
-        declarationDir: null,
+        outputToFilesystem: true,
       }),
       babel({
         babelHelpers: "bundled",
@@ -114,11 +116,13 @@ const categoryBundles = categories.map((category) => {
         file: `dist/categories/${category}.js`,
         format: "cjs",
         sourcemap: true,
+        exports: "named",
       },
       {
         file: `dist/categories/${category}.esm.js`,
         format: "esm",
         sourcemap: true,
+        exports: "named",
       },
     ],
     plugins: [
@@ -128,8 +132,7 @@ const categoryBundles = categories.map((category) => {
       typescript({
         tsconfig: "./tsconfig.json",
         exclude: ["**/__tests__/**", "**/*.test.ts", "**/*.test.tsx"],
-        declaration: false,
-        declarationDir: null,
+        outputToFilesystem: true,
       }),
       babel({
         babelHelpers: "bundled",

@@ -12,22 +12,14 @@
     "moduleResolution": "node",
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "noEmit": false,
+    "noEmit": true,
     "jsx": "react",
-    "declaration": true,
-    "declarationDir": "dist",
     "outDir": "dist",
-    "rootDir": ".",
+    "rootDir": "src",
     "sourceMap": true,
-    "types": ["jest", "node", "@testing-library/jest-dom"],
-    "composite": true
+    "types": ["jest", "node", "@testing-library/jest-dom"]
   },
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "docs/stories/hooks/useMountedRef.stories.tsx",
-    "docs/stories/hooks/usePageVisibility.stories.tsx"
-  ],
+  "include": ["src/**/*.ts", "src/**/*.tsx"],
   "exclude": [
     "node_modules",
     "dist",

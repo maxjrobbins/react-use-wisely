@@ -36,15 +36,15 @@
     "dist"
   ],
   "scripts": {
-    "build": "rollup -c",
+    "build": "npm run build:types && rollup -c",
+    "build:types": "tsc -p tsconfig.build.json",
     "lint": "eslint --config eslint.config.mjs 'src/**/*.{js,jsx,ts,tsx}'",
     "lint:fix": "eslint --fix --config eslint.config.mjs 'src/**/*.{js,jsx,ts,tsx}'",
     "prepublishOnly": "npm run build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
-    "typecheck": "tsc --noEmit",
-    "build:types": "tsc --emitDeclarationOnly"
+    "typecheck": "tsc --noEmit"
   },
   "keywords": [
     "react",
