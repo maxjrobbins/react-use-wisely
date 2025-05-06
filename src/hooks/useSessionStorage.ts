@@ -57,8 +57,24 @@ function useSessionStorage<T>(
 
     try {
       const item = window.sessionStorage.getItem(key);
-      // Parse stored json or return initialValue if null
-      return item ? (JSON.parse(item) as T) : initialValue;
+      if (!item) {
+        return initialValue;
+      }
+      try {
+        return JSON.parse(item) as T;
+      } catch (parseError) {
+        setError(
+          new LocalStorageError(
+            "Error reading from sessionStorage",
+            parseError,
+            {
+              key,
+              action: "read",
+            }
+          )
+        );
+        return initialValue;
+      }
     } catch (e) {
       console.warn(`Error reading sessionStorage key "${key}":`, e);
       setError(

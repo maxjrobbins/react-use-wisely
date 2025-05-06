@@ -84,6 +84,10 @@ function usePermission(permissionName: CustomPermissionName): PermissionResult {
     PermissionState | "unsupported"
   > => {
     if (!isPermissionsSupported || !isFeatureSupported) {
+      // If permissions API is not supported but Notification API is available
+      if (permissionName === "notifications" && "Notification" in window) {
+        return Notification.permission as PermissionState;
+      }
       return "unsupported";
     }
 

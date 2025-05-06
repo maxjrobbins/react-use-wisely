@@ -25,11 +25,11 @@ const TestComponent: FC<TestComponentProps> = ({ query, defaultValue }) => {
 describe("useMedia", () => {
   // Store the original implementation
   const _originalMatchMedia = window.matchMedia;
-  const originalWindow = global.window;
+  let originalWindow: Window | undefined;
 
   // Mock implementation to use for tests
   let _mockMatchMedia: jest.Mock;
-  let listeners: Array<(event?: MediaQueryListEvent) => void> = [];
+  let listeners: Array<() => void> = [];
 
   beforeAll(() => {
     // Spy on the original implementation instead of replacing it
@@ -42,7 +42,8 @@ describe("useMedia", () => {
   });
 
   beforeEach(() => {
-    // Reset listeners for each test
+    // Store original window
+    originalWindow = global.window;
     listeners = [];
   });
 
@@ -56,8 +57,14 @@ describe("useMedia", () => {
       }
     }
 
-    // Restore window if it was modified
-    global.window = originalWindow;
+    // Instead of directly assigning, use Object.defineProperty
+    if (originalWindow) {
+      Object.defineProperty(global, "window", {
+        value: originalWindow,
+        writable: true,
+        configurable: true,
+      });
+    }
   });
 
   test("should use matchMedia result when available", () => {
