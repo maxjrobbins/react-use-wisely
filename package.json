@@ -1,6 +1,6 @@
 {
   "name": "react-use-wisely",
-  "version": "2.0.0",
+  "version": "2.0.1",
   "description": "A comprehensive collection of React hooks with standardized interfaces, robust error handling, and cross-browser compatibility.",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",

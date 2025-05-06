@@ -5,6 +5,15 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.1] - 2024-03-21
+
+### Fixed
+
+- Fixed TypeScript declaration file generation issues
+- Resolved CommonJS/ESM export compatibility warnings
+- Updated build configuration to properly handle declarations and exports
+- Improved module resolution for better compatibility with different bundlers
+
 ## [2.0.0] - 2025-05-06
 
 ## Breaking Changes
@@ -67,7 +76,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - **Hook Standard Guide**
 
-  - Added a living “Hook Standard Guide” outlining naming conventions, return-type interfaces, and testing best practices.
+  - Added a living "Hook Standard Guide" outlining naming conventions, return-type interfaces, and testing best practices.
 
 - **Storybook updates**
   - Updated `storybook.yml` to include the new hooks.
