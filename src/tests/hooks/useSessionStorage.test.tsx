@@ -38,6 +38,11 @@ describe("useSessionStorage", () => {
       configurable: true,
     });
 
+    // Ensure the mock is properly set up
+    if (!window.sessionStorage) {
+      throw new Error("Failed to set up sessionStorage mock");
+    }
+
     jest.clearAllMocks();
   });
 

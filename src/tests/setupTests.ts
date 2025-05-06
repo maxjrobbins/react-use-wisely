@@ -45,3 +45,25 @@ Object.defineProperty(window, "scrollTo", {
   value: jest.fn(),
   writable: true,
 });
+
+// Mock Notification API
+Object.defineProperty(window, "Notification", {
+  value: {
+    permission: "granted",
+    requestPermission: jest.fn().mockResolvedValue("granted"),
+  },
+  writable: true,
+});
+
+// Mock Permissions API
+Object.defineProperty(navigator, "permissions", {
+  value: {
+    query: jest.fn().mockImplementation(({ name }) => {
+      if (name === "notifications") {
+        return Promise.resolve({ state: "granted" });
+      }
+      return Promise.resolve({ state: "prompt" });
+    }),
+  },
+  writable: true,
+});
