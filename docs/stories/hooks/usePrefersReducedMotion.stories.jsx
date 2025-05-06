@@ -15,7 +15,11 @@ export default {
 };
 
 export const Default = () => {
-  const prefersReducedMotion = usePrefersReducedMotion();
+  const {
+    value: prefersReducedMotion,
+    isSupported,
+    error,
+  } = usePrefersReducedMotion();
   const [isAnimating, setIsAnimating] = useState(false);
 
   // Function to toggle animation state
@@ -70,6 +74,45 @@ export const Default = () => {
             : "Animations will be shown as intended."}
         </p>
       </div>
+
+      {/* Display API support status */}
+      <div
+        style={{
+          padding: "10px",
+          backgroundColor: isSupported ? "#e8f5e9" : "#ffebee",
+          borderRadius: "4px",
+          marginBottom: "20px",
+          border: isSupported ? "1px solid #81c784" : "1px solid #ef9a9a",
+        }}
+      >
+        <span
+          style={{
+            fontWeight: "bold",
+            color: isSupported ? "#2e7d32" : "#c62828",
+          }}
+        >
+          {isSupported
+            ? "✅ MediaQuery API is supported in your browser"
+            : "⚠️ MediaQuery API is not supported in your browser"}
+        </span>
+      </div>
+
+      {/* Display any errors */}
+      {error && (
+        <div
+          style={{
+            padding: "10px",
+            backgroundColor: "#ffebee",
+            borderRadius: "4px",
+            marginBottom: "20px",
+            border: "1px solid #ef9a9a",
+          }}
+        >
+          <span style={{ fontWeight: "bold", color: "#c62828" }}>
+            ⚠️ Error: {error.message}
+          </span>
+        </div>
+      )}
 
       <div style={{ marginBottom: "30px" }}>
         <button

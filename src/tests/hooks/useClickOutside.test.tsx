@@ -4,17 +4,28 @@ import useClickOutside from "../../hooks/useClickOutside";
 
 interface TestComponentProps {
   callback: () => void;
+  enabled?: boolean;
 }
 
 // A test component that uses the hook
-function TestComponent({ callback }: TestComponentProps): ReactElement {
-  const ref = useClickOutside<HTMLDivElement>(callback);
+function TestComponent({
+  callback,
+  enabled,
+}: TestComponentProps): ReactElement {
+  const { ref, error, isSupported } = useClickOutside<HTMLDivElement>(
+    callback,
+    { enabled }
+  );
 
   return (
     <div>
       <div data-testid="outside">Outside Element</div>
       <div data-testid="inside" ref={ref}>
         Inside Element
+      </div>
+      {error && <div data-testid="error">{error.message}</div>}
+      <div data-testid="supported">
+        {isSupported ? "Supported" : "Not Supported"}
       </div>
     </div>
   );
@@ -90,11 +101,14 @@ describe("useClickOutside", () => {
   test("should not call callback when ref is null", () => {
     // This component doesn't attach the ref to any element
     function NullRefComponent({ callback }: TestComponentProps): ReactElement {
-      const ref = useClickOutside(callback);
+      const { ref, isSupported } = useClickOutside(callback);
 
       return (
         <div>
           <div data-testid="outside">Outside Element</div>
+          <div data-testid="supported">
+            {isSupported ? "Supported" : "Not Supported"}
+          </div>
           {/* No element with ref attached */}
         </div>
       );
@@ -109,5 +123,32 @@ describe("useClickOutside", () => {
 
     // With a null ref, the callback should NOT be called
     expect(mockCallback).not.toHaveBeenCalled();
+  });
+
+  test("should not add event listeners when enabled is false", () => {
+    const addEventListenerSpy = jest.spyOn(document, "addEventListener");
+
+    render(<TestComponent callback={mockCallback} enabled={false} />);
+
+    // Event listener should not be added when enabled is false
+    expect(addEventListenerSpy).not.toHaveBeenCalled();
+
+    const outsideElement = screen.getByTestId("outside");
+
+    // Click outside
+    fireEvent.mouseDown(outsideElement);
+
+    // Callback should not be called
+    expect(mockCallback).not.toHaveBeenCalled();
+
+    // Clean up spies
+    addEventListenerSpy.mockRestore();
+  });
+
+  test("should indicate browser support", () => {
+    render(<TestComponent callback={mockCallback} />);
+
+    // In test environment, document is available
+    expect(screen.getByTestId("supported").textContent).toBe("Supported");
   });
 });

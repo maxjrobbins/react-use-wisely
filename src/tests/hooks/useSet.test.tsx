@@ -8,11 +8,11 @@ interface TestComponentProps {
 
 // A test component that uses the hook
 const TestComponent: FC<TestComponentProps> = ({ initialItems = [] }) => {
-  const [set, { add, remove, clear, has, toggle }] =
+  const { value, add, remove, clear, has, toggle } =
     useSet<string>(initialItems);
 
   // Convert Set to sorted Array for display
-  const items = Array.from(set).sort();
+  const items = Array.from(value).sort();
 
   return (
     <div>
@@ -234,7 +234,7 @@ describe("useSet", () => {
   test("should handle complex data types", () => {
     // Modified component that correctly shows the test
     const ComplexTypesComponent: FC = () => {
-      const [set, { add, has }] = useSet<TestObject>();
+      const { value, add, has } = useSet<TestObject>();
       const [objectInSet, setObjectInSet] = useState<TestObject | null>(null);
       const [hasOriginal, setHasOriginal] = useState<boolean>(false);
       const [hasEquivalent, setHasEquivalent] = useState<boolean>(false);
@@ -272,7 +272,7 @@ describe("useSet", () => {
               ? "Has equivalent object"
               : "Does not have equivalent object"}
           </div>
-          <div data-testid="set-size">Size: {set.size}</div>
+          <div data-testid="set-size">Size: {value.size}</div>
         </div>
       );
     };

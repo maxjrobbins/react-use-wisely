@@ -15,14 +15,19 @@
     "noEmit": false,
     "jsx": "react",
     "declaration": true,
-    "declarationDir": "dist/types",
+    "declarationDir": "dist",
     "outDir": "dist",
-    "rootDir": "src",
+    "rootDir": ".",
     "sourceMap": true,
     "types": ["jest", "node", "@testing-library/jest-dom"],
     "composite": true
   },
-  "include": ["src/**/*.ts", "src/**/*.tsx"],
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.tsx",
+    "docs/stories/hooks/useMountedRef.stories.tsx",
+    "docs/stories/hooks/usePageVisibility.stories.tsx"
+  ],
   "exclude": [
     "node_modules",
     "dist",

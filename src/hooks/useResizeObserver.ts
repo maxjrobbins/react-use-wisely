@@ -14,25 +14,40 @@ interface DimensionsObject {
   y?: number;
 }
 
+interface ResizeObserverResult<T extends HTMLElement> {
+  ref: MutableRefObject<T | null>;
+  dimensions: DimensionsObject;
+  isSupported: boolean;
+  error: ResizeObserverError | null;
+}
+
 /**
  * Hook that observes an element's dimensions
  * @template T - The type of HTML element to observe
- * @returns [ref, dimensions, error] - Ref to attach, current dimensions, and any error that occurred
+ * @returns An object containing ref to attach, current dimensions, support status, and any error
  */
-const useResizeObserver = <T extends HTMLElement = HTMLElement>(): [
-  MutableRefObject<T | null>,
-  DimensionsObject,
-  ResizeObserverError | null
-] => {
-  const [dimensions, setDimensions] = useState<DimensionsObject>({});
+const useResizeObserver = <
+  T extends HTMLElement = HTMLElement
+>(): ResizeObserverResult<T> => {
+  const [dimensions, setDimensions] = useState<DimensionsObject>({
+    bottom: 0,
+    height: 0,
+    left: 0,
+    right: 0,
+    top: 0,
+    width: 0,
+    x: 0,
+    y: 0,
+  });
   const [error, setError] = useState<ResizeObserverError | null>(null);
   const ref = useRef<T | null>(null);
+  const isSupported = typeof ResizeObserver !== "undefined";
 
   useEffect(() => {
     if (!ref.current) return;
 
     // Check if ResizeObserver is supported
-    if (typeof ResizeObserver === "undefined") {
+    if (!isSupported) {
       const notSupportedError = new ResizeObserverNotSupportedError();
       setError(notSupportedError);
       return;
@@ -90,7 +105,7 @@ const useResizeObserver = <T extends HTMLElement = HTMLElement>(): [
     };
   }, []); // Empty dependency array is better, ref.current won't trigger re-renders anyway
 
-  return [ref, dimensions, error];
+  return { ref, dimensions, isSupported, error };
 };
 
 export { ResizeObserverError, ResizeObserverNotSupportedError };

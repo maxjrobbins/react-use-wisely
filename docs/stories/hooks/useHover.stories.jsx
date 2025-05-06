@@ -15,7 +15,23 @@ export default {
 };
 
 export const Default = () => {
-  const [ref, isHovering] = useHover();
+  const { ref, isHovered, isSupported, error } = useHover();
+
+  if (!isSupported) {
+    return (
+      <div style={{ padding: "20px", color: "red" }}>
+        Hover detection is not supported in this environment.
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div style={{ padding: "20px", color: "red" }}>
+        Error: {error.message}
+      </div>
+    );
+  }
 
   return (
     <div style={{ padding: "20px" }}>
@@ -27,17 +43,17 @@ export const Default = () => {
           marginTop: "20px",
           padding: "40px",
           textAlign: "center",
-          backgroundColor: isHovering ? "#e0f7fa" : "#f5f5f5",
+          backgroundColor: isHovered ? "#e0f7fa" : "#f5f5f5",
           border: "2px solid",
-          borderColor: isHovering ? "#00bcd4" : "#ddd",
+          borderColor: isHovered ? "#00bcd4" : "#ddd",
           borderRadius: "8px",
           transition: "all 0.3s ease",
-          transform: isHovering ? "scale(1.05)" : "scale(1)",
+          transform: isHovered ? "scale(1.05)" : "scale(1)",
           cursor: "pointer",
         }}
       >
-        <h4 style={{ margin: "0", color: isHovering ? "#00838f" : "#333" }}>
-          {isHovering ? "You are hovering over me! 👋" : "Hover over me"}
+        <h4 style={{ margin: "0", color: isHovered ? "#00838f" : "#333" }}>
+          {isHovered ? "You are hovering over me! 👋" : "Hover over me"}
         </h4>
       </div>
 
@@ -52,7 +68,11 @@ export const Default = () => {
       >
         <p>
           <strong>Hover Status:</strong>{" "}
-          {isHovering ? "Hovering" : "Not hovering"}
+          {isHovered ? "Hovering" : "Not hovering"}
+        </p>
+        <p>
+          <strong>Support Status:</strong>{" "}
+          {isSupported ? "Supported" : "Not supported"}
         </p>
       </div>
 
@@ -82,7 +102,7 @@ export const Default = () => {
 
 // Example component using the hover hook
 const HoverCard = ({ color }) => {
-  const [cardRef, isCardHovering] = useHover();
+  const { ref: cardRef, isHovered: isCardHovering } = useHover();
 
   return (
     <div

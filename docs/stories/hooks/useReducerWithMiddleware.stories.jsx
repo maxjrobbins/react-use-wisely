@@ -56,6 +56,8 @@ const reducer = (state, action) => {
       return { ...state, count: state.count + state.step };
     case "DECREMENT_BY_STEP":
       return { ...state, count: state.count - state.step };
+    case "ERROR":
+      throw new Error("Simulated reducer error");
     default:
       return state;
   }
@@ -100,7 +102,7 @@ export const Default = () => {
     setLogMessages((prev) => [...prev, formattedArgs.join(" ")].slice(-5));
   };
 
-  const [state, dispatch] = useReducerWithMiddleware(
+  const { state, dispatch, error } = useReducerWithMiddleware(
     reducer,
     initialState,
     loggingMiddleware
@@ -160,6 +162,20 @@ export const Default = () => {
         >
           Reset
         </button>
+
+        <button
+          onClick={() => dispatch({ type: "ERROR" })}
+          style={{
+            padding: "8px 16px",
+            backgroundColor: "#FF9800",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+          }}
+        >
+          Trigger Error
+        </button>
       </div>
 
       <div
@@ -183,6 +199,30 @@ export const Default = () => {
           Count: <strong>{state.count}</strong>
         </div>
       </div>
+
+      {error && (
+        <div
+          style={{
+            backgroundColor: "#ffebee",
+            padding: "20px",
+            borderRadius: "4px",
+            marginBottom: "20px",
+            border: "1px solid #f44336",
+          }}
+        >
+          <h4 style={{ margin: "0 0 10px 0", color: "#d32f2f" }}>Error:</h4>
+          <div
+            style={{
+              backgroundColor: "white",
+              padding: "15px",
+              borderRadius: "4px",
+              fontSize: "16px",
+            }}
+          >
+            {error.message}
+          </div>
+        </div>
+      )}
 
       <div
         style={{
@@ -336,6 +376,9 @@ export const Default = () => {
             function
           </li>
           <li>Middleware must call next(action) to continue processing</li>
+          <li>
+            Built-in error handling for both reducer and middleware operations
+          </li>
         </ul>
       </div>
     </div>

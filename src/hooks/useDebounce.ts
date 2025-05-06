@@ -1,12 +1,37 @@
 import { useState, useEffect } from "react";
 
 /**
+ * Options for the useDebounce hook
+ */
+export interface DebounceOptions {
+  /**
+   * The delay in milliseconds
+   * @default 500
+   */
+  delay?: number;
+}
+
+/**
+ * Hook result for debounce operations
+ */
+export interface DebounceResult<T> {
+  // State
+  value: T;
+  // Error handling
+  error: null; // Debounce doesn't typically produce errors
+}
+
+/**
  * Hook for debouncing value changes
  * @param value - The value to debounce
- * @param delay - The delay in ms
- * @returns The debounced value
+ * @param options - Configuration options
+ * @returns Object with debounced value
  */
-const useDebounce = <T>(value: T, delay: number): T => {
+const useDebounce = <T>(
+  value: T,
+  options: DebounceOptions = {}
+): DebounceResult<T> => {
+  const { delay = 500 } = options;
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
 
   useEffect(() => {
@@ -23,7 +48,12 @@ const useDebounce = <T>(value: T, delay: number): T => {
     };
   }, [value, delay]);
 
-  return debouncedValue;
+  return {
+    // State
+    value: debouncedValue,
+    // Error handling
+    error: null,
+  };
 };
 
 export default useDebounce;

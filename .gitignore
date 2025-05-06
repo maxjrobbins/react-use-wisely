@@ -4,6 +4,7 @@ coverage
 .DS_Store
 *.log
 .rollup.cache
+tsconfig.tsbuildinfo
 
 *storybook.log
 

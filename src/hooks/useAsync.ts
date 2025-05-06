@@ -1,22 +1,48 @@
 import { useState, useCallback, useEffect } from "react";
 import { AsyncError } from "./errors";
+import { safeStringify } from "../utils/helpers";
+
+/**
+ * Options for the useAsync hook
+ */
+export interface AsyncOptions {
+  immediate?: boolean;
+  retryCount?: number;
+  retryDelay?: number;
+}
+
+/**
+ * Hook result for async operations
+ */
+export interface AsyncResult<T, P extends unknown[]> {
+  // Methods
+  execute: (...params: P) => Promise<T>;
+  reset: () => void;
+  // State
+  value: T | null;
+  status: "idle" | "pending" | "success" | "error" | "retrying";
+  // Error handling
+  error: AsyncError | null;
+  // Status indicators
+  isLoading: boolean;
+  isRetrying: boolean;
+  attemptCount: number;
+}
 
 /**
  * Hook for managing async operations
  * @template T The type of the value returned by the async function
  * @template P The type of parameters for the async function
  * @param {(...params: P) => Promise<T>} asyncFunction - The async function to execute
- * @param {boolean} immediate - Whether to execute the function immediately
- * @param {number} retryCount - Number of retry attempts (default: 0)
- * @param {number} retryDelay - Delay between retries in ms (default: 1000)
- * @returns {Object} - Status and control functions for the async operation
+ * @param {AsyncOptions} options - Configuration options
+ * @returns {AsyncResult<T, P>} - Status and control functions for the async operation
  */
 const useAsync = <T, P extends unknown[] = unknown[]>(
   asyncFunction: (...params: P) => Promise<T>,
-  immediate = false,
-  retryCount = 0,
-  retryDelay = 1000
-) => {
+  options: AsyncOptions = {}
+): AsyncResult<T, P> => {
+  const { immediate = false, retryCount = 0, retryDelay = 1000 } = options;
+
   type StatusType = "idle" | "pending" | "success" | "error" | "retrying";
 
   const [status, setStatus] = useState<StatusType>("idle");
@@ -33,29 +59,37 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
       setError(null);
       setAttemptCount(0);
 
+      let currentAttempt = 0;
+
       // Create a retry function
-      const executeWithRetry = async (attempt: number): Promise<T> => {
+      const executeWithRetry = async (): Promise<T> => {
         try {
           const response = await asyncFunction(...params);
           setValue(response);
           setStatus("success");
           return response;
         } catch (error) {
+          // Create a safe params representation for error context
+          const safeParams = params.map((param) => safeStringify(param));
+
           const asyncError = new AsyncError(
             error instanceof Error ? error.message : "Unknown async error",
             error,
-            { params: JSON.stringify(params), attempt }
+            { params: safeParams, attempt: currentAttempt }
           );
 
           // Check if we should retry
-          if (attempt < retryCount) {
+          if (currentAttempt < retryCount) {
+            currentAttempt++;
             setStatus("retrying");
             setError(asyncError);
-            setAttemptCount(attempt + 1);
+            setAttemptCount(currentAttempt);
 
-            // Wait before retry
-            await new Promise((resolve) => setTimeout(resolve, retryDelay));
-            return executeWithRetry(attempt + 1);
+            return new Promise<T>((resolve, reject) => {
+              setTimeout(() => {
+                executeWithRetry().then(resolve).catch(reject);
+              }, retryDelay);
+            });
           }
 
           // No more retries, set final error
@@ -65,7 +99,7 @@ const useAsync = <T, P extends unknown[] = unknown[]>(
         }
       };
 
-      return executeWithRetry(0);
+      return executeWithRetry();
     },
     [asyncFunction, retryCount, retryDelay]
   );

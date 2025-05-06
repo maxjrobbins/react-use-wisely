@@ -6,6 +6,7 @@ import {
   useEffect,
   Reducer,
   Dispatch,
+  useState,
 } from "react";
 
 /**
@@ -20,24 +21,47 @@ export type Middleware<S, A> = (
 ) => void;
 
 /**
+ * Return type for useReducerWithMiddleware
+ * @template S State type
+ * @template A Action type
+ */
+export interface ReducerWithMiddlewareResult<S, A> {
+  state: S;
+  dispatch: Dispatch<A>;
+  error: Error | null;
+}
+
+/**
  * Hook that enhances useReducer with middleware
  * @template S State type
  * @template A Action type
  * @param reducer - The reducer function
  * @param initialState - Initial state
  * @param middlewareFn - Middleware function
- * @returns [state, dispatch] - State and dispatch function
+ * @returns Object containing state, dispatch function, and error
  */
 const useReducerWithMiddleware = <S, A>(
   reducer: Reducer<S, A>,
   initialState: S,
   middlewareFn?: Middleware<S, A>
-): [S, Dispatch<A>] => {
+): ReducerWithMiddlewareResult<S, A> => {
+  // Error state
+  const [error, setError] = useState<Error | null>(null);
+
   // Create a memoized version of the reducer that updates our ref
   const reducerWithRef = useCallback(
     (state: S, action: A): S => {
-      const newState = reducer(state, action);
-      return newState;
+      try {
+        const newState = reducer(state, action);
+        return newState;
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("An error occurred in the reducer")
+        );
+        return state;
+      }
     },
     [reducer]
   );
@@ -55,21 +79,33 @@ const useReducerWithMiddleware = <S, A>(
   // Create a stable dispatch function that doesn't change on rerenders
   const dispatch = useCallback(
     (action: A) => {
-      if (middlewareFn) {
-        // Always use the most up-to-date state from the ref
-        const next = (nextAction: A) => {
-          originalDispatch(nextAction);
-        };
+      try {
+        if (middlewareFn) {
+          // Always use the most up-to-date state from the ref
+          const next = (nextAction: A) => {
+            originalDispatch(nextAction);
+          };
 
-        middlewareFn(stateRef.current, action, next);
-      } else {
-        originalDispatch(action);
+          middlewareFn(stateRef.current, action, next);
+        } else {
+          originalDispatch(action);
+        }
+      } catch (err) {
+        setError(
+          err instanceof Error
+            ? err
+            : new Error("An error occurred in the middleware")
+        );
       }
     },
     [middlewareFn, originalDispatch]
   );
 
-  return [state, dispatch];
+  return {
+    state,
+    dispatch,
+    error,
+  };
 };
 
 export default useReducerWithMiddleware;

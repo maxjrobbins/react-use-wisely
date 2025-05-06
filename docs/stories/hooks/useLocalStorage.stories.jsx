@@ -17,18 +17,18 @@ export default {
 export const Default = () => {
   // Use a unique key with timestamp to avoid conflicts between story renders
   const uniqueKey = `demoKey-${Date.now().toString().slice(-5)}`;
-  const [storedValue, setStoredValue, error] = useLocalStorage(
+  const { value, setValue, error, isSupported } = useLocalStorage(
     uniqueKey,
     "Hello world!"
   );
-  const [inputValue, setInputValue] = useState(storedValue);
+  const [inputValue, setInputValue] = useState(value);
 
   const handleChange = (e) => {
     setInputValue(e.target.value);
   };
 
   const handleSave = () => {
-    setStoredValue(inputValue);
+    setValue(inputValue);
   };
 
   return (
@@ -37,8 +37,10 @@ export const Default = () => {
     >
       <h3>Local Storage Demo</h3>
       <p>
-        Current value in localStorage[{uniqueKey}]:{" "}
-        <strong>{storedValue}</strong>
+        Current value in localStorage[{uniqueKey}]: <strong>{value}</strong>
+      </p>
+      <p>
+        Local Storage supported: <strong>{isSupported ? "Yes" : "No"}</strong>
       </p>
 
       {error && (
@@ -98,12 +100,10 @@ Default.storyName = "Basic Usage";
 export const WithErrorHandling = () => {
   // Use a unique key with timestamp to avoid conflicts between story renders
   const uniqueKey = `errorDemo-${Date.now().toString().slice(-5)}`;
-  const [storedValue, setStoredValue, error] = useLocalStorage(uniqueKey, {
+  const { value, setValue, error, isSupported } = useLocalStorage(uniqueKey, {
     message: "This is a valid object",
   });
-  const [inputValue, setInputValue] = useState(
-    JSON.stringify(storedValue, null, 2)
-  );
+  const [inputValue, setInputValue] = useState(JSON.stringify(value, null, 2));
   const [showValid, setShowValid] = useState(true);
   const [triggerMessage, setTriggerMessage] = useState("");
 
@@ -114,7 +114,7 @@ export const WithErrorHandling = () => {
   const handleSave = () => {
     try {
       const parsedValue = JSON.parse(inputValue);
-      setStoredValue(parsedValue);
+      setValue(parsedValue);
     } catch (e) {
       alert(`Invalid JSON: ${e.message}`);
     }
@@ -140,11 +140,11 @@ export const WithErrorHandling = () => {
     };
 
     // Our hook should catch this error and handle it gracefully
-    setStoredValue(largeObject);
+    setValue(largeObject);
   };
 
   const saveValidObject = () => {
-    setStoredValue({
+    setValue({
       message: "This is a valid object",
       timestamp: new Date().toISOString(),
     });
@@ -169,6 +169,9 @@ export const WithErrorHandling = () => {
         <strong>Storage key:</strong> {uniqueKey}
         <div style={{ marginTop: "5px", fontSize: "0.9em" }}>
           <strong>Status:</strong> {error ? "Error detected" : "OK"}
+        </div>
+        <div style={{ marginTop: "5px", fontSize: "0.9em" }}>
+          <strong>Local Storage supported:</strong> {isSupported ? "Yes" : "No"}
         </div>
       </div>
 
@@ -245,7 +248,7 @@ export const WithErrorHandling = () => {
             overflow: "auto",
           }}
         >
-          {showValid ? JSON.stringify(storedValue, null, 2) : inputValue}
+          {showValid ? JSON.stringify(value, null, 2) : inputValue}
         </pre>
       </div>
 

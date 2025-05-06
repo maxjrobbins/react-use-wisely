@@ -2,9 +2,25 @@ import React, { FC, CSSProperties } from "react";
 import { render, screen, act } from "@testing-library/react";
 import usePrefersReducedMotion from "../../hooks/usePrefersReducedMotion";
 
+// Mock the browser utilities module for specific tests
+jest.mock("../../utils/browser", () => {
+  const originalModule = jest.requireActual("../../utils/browser");
+  return {
+    ...originalModule,
+    features: {
+      ...originalModule.features,
+      mediaQueries: jest.fn().mockReturnValue(true), // Default to supported
+    },
+  };
+});
+
 // A test component that uses the hook
 const TestComponent: FC = () => {
-  const prefersReducedMotion = usePrefersReducedMotion();
+  const {
+    value: prefersReducedMotion,
+    isSupported,
+    error,
+  } = usePrefersReducedMotion();
 
   const animationStyle: CSSProperties = {
     padding: "10px",
@@ -19,6 +35,12 @@ const TestComponent: FC = () => {
           ? "Prefers reduced motion"
           : "No preference for reduced motion"}
       </div>
+      <div data-testid="support-status">
+        {isSupported
+          ? "MediaQuery API is supported"
+          : "MediaQuery API is not supported"}
+      </div>
+      {error && <div data-testid="error-message">{error.message}</div>}
       <div data-testid="animation-example" style={animationStyle}>
         Animation Example
       </div>
@@ -42,7 +64,13 @@ describe("usePrefersReducedMotion", () => {
   // Save original implementation and create spy
   let matchMediaSpy: jest.SpyInstance;
 
+  // Import the mocked features for manipulation in tests
+  const browserUtils = require("../../utils/browser");
+
   beforeEach(() => {
+    // Reset mock to default behavior
+    browserUtils.features.mediaQueries.mockReturnValue(true);
+
     // Create a spy on window.matchMedia
     matchMediaSpy = jest.spyOn(window, "matchMedia");
   });
@@ -50,6 +78,7 @@ describe("usePrefersReducedMotion", () => {
   afterEach(() => {
     // Restore original implementation
     matchMediaSpy.mockRestore();
+    jest.clearAllMocks();
   });
 
   test("should return false when prefers-reduced-motion is not set", () => {
@@ -69,6 +98,9 @@ describe("usePrefersReducedMotion", () => {
 
     expect(screen.getByTestId("preference").textContent).toBe(
       "No preference for reduced motion"
+    );
+    expect(screen.getByTestId("support-status").textContent).toBe(
+      "MediaQuery API is supported"
     );
     expect(screen.getByTestId("animation-example").style.transition).toBe(
       "all 0.5s ease-in-out"
@@ -192,8 +224,10 @@ describe("usePrefersReducedMotion", () => {
   });
 
   test("should handle browser without matchMedia", () => {
-    // Instead of deleting window.matchMedia, mock it to return a mediaQuery
-    // that will work with the hook's implementation
+    // Mock that feature detection returns false (unsupported)
+    browserUtils.features.mediaQueries.mockReturnValue(false);
+
+    // Even with this mock, the component should render with default values
     matchMediaSpy.mockImplementation(() => ({
       matches: false,
       addEventListener: jest.fn(),
@@ -203,6 +237,11 @@ describe("usePrefersReducedMotion", () => {
     }));
 
     render(<TestComponent />);
+
+    // Should show that the API is not supported
+    expect(screen.getByTestId("support-status").textContent).toBe(
+      "MediaQuery API is not supported"
+    );
 
     // Default to false when matchMedia is not available
     expect(screen.getByTestId("preference").textContent).toBe(
@@ -230,6 +269,24 @@ describe("usePrefersReducedMotion", () => {
     expect(removeEventListenerMock).toHaveBeenCalledWith(
       "change",
       expect.any(Function)
+    );
+  });
+
+  test("should handle API errors gracefully", () => {
+    // Mock matchMedia to throw an error
+    matchMediaSpy.mockImplementation(() => {
+      throw new Error("MediaQuery API error");
+    });
+
+    render(<TestComponent />);
+
+    // Should show error message - check if it exists in the document
+    const errorElement = screen.queryByTestId("error-message");
+    expect(errorElement).not.toBeNull();
+
+    // Should still provide a default value
+    expect(screen.getByTestId("preference").textContent).toBe(
+      "No preference for reduced motion"
     );
   });
 });
