@@ -228,6 +228,7 @@ describe("useScrollPosition", () => {
     };
 
     const { result } = renderHook(() =>
+        // @ts-ignore
         useScrollPosition({ element: brokenRef })
     );
 

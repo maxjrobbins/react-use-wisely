@@ -1,7 +1,7 @@
 {
   "name": "react-use-wisely",
-  "version": "1.1.3",
-  "description": "A collection of utility hooks for React applications.",
+  "version": "2.0.0",
+  "description": "A comprehensive collection of React hooks with standardized interfaces, robust error handling, and cross-browser compatibility.",
   "main": "dist/index.js",
   "module": "dist/index.esm.js",
   "types": "dist/types/index.d.ts",
@@ -51,7 +51,10 @@
     "hooks",
     "utilities",
     "custom-hooks",
-    "typescript"
+    "typescript",
+    "error-handling",
+    "browser-compatibility",
+    "standardized-interfaces"
   ],
   "author": "mrobbins18",
   "license": "MIT",
