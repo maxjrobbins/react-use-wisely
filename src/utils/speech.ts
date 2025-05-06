@@ -8,7 +8,7 @@ import {
  * Get the browser's speech recognition implementation
  * @returns SpeechRecognition constructor or null
  */
-export const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
+export let getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
   if (!isBrowser) return null;
 
   return window.SpeechRecognition || window.webkitSpeechRecognition || null;

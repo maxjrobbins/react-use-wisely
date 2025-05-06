@@ -29,7 +29,15 @@ export const Default = () => {
     ["location", "New York"],
   ]);
 
-  const [map, { set, get, remove, clear, has }] = useMap(initialMap);
+  const {
+    value: map,
+    set,
+    get,
+    remove,
+    clear,
+    has,
+    reset,
+  } = useMap(initialMap);
 
   const handleAdd = (e) => {
     e.preventDefault();
@@ -138,6 +146,22 @@ export const Default = () => {
               }}
             >
               Clear All
+            </button>
+
+            <button
+              type="button"
+              onClick={() => reset()}
+              style={{
+                padding: "8px 16px",
+                backgroundColor: "#2196F3",
+                color: "white",
+                border: "none",
+                borderRadius: "4px",
+                cursor: "pointer",
+                height: "40px",
+              }}
+            >
+              Reset to Initial
             </button>
           </div>
         </form>
@@ -297,6 +321,9 @@ export const Default = () => {
         <h4 style={{ margin: "0 0 10px 0" }}>Hook API:</h4>
         <ul style={{ margin: "0", paddingLeft: "20px" }}>
           <li>
+            <code>value</code> - The Map instance
+          </li>
+          <li>
             <code>set(key, value)</code> - Sets a key-value pair in the map
           </li>
           <li>
@@ -310,6 +337,12 @@ export const Default = () => {
           </li>
           <li>
             <code>has(key)</code> - Checks if a key exists in the map
+          </li>
+          <li>
+            <code>reset()</code> - Resets the map to its initial state
+          </li>
+          <li>
+            <code>error</code> - Error information (null if no error)
           </li>
         </ul>
       </div>

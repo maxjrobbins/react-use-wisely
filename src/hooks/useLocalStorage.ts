@@ -8,18 +8,31 @@ import { LocalStorageError } from "./errors";
 export type SetValue<T> = Dispatch<SetStateAction<T>>;
 
 /**
+ * Hook result interface for useLocalStorage
+ */
+export interface UseLocalStorageResult<T> {
+  value: T;
+  setValue: SetValue<T>;
+  error: LocalStorageError | null;
+  isSupported: boolean;
+}
+
+/**
  * Hook for managing localStorage values
  * @param key - The localStorage key
  * @param initialValue - The initial value
- * @returns - [storedValue, setValue, error] including any current error state
+ * @returns - Object containing the stored value, setter function, error state, and feature support flag
  */
 function useLocalStorage<T>(
   key: string,
   initialValue: T
-): [T, SetValue<T>, LocalStorageError | null] {
+): UseLocalStorageResult<T> {
+  // Check if localStorage is supported
+  const isSupported = typeof window !== "undefined" && !!window.localStorage;
+
   // State to store our value
   const [storedValue, setStoredValue] = useState<T>(() => {
-    if (typeof window === "undefined") {
+    if (!isSupported) {
       return initialValue;
     }
 
@@ -55,7 +68,7 @@ function useLocalStorage<T>(
       setError(null);
 
       // Save to local storage
-      if (typeof window !== "undefined") {
+      if (isSupported) {
         window.localStorage.setItem(key, JSON.stringify(valueToStore));
       }
     } catch (error) {
@@ -80,7 +93,7 @@ function useLocalStorage<T>(
 
   // Listen for changes to this localStorage key in other tabs/windows
   useEffect(() => {
-    if (typeof window === "undefined") {
+    if (!isSupported) {
       return;
     }
 
@@ -106,9 +119,14 @@ function useLocalStorage<T>(
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [key]);
+  }, [key, isSupported]);
 
-  return [storedValue, setValue, error];
+  return {
+    value: storedValue,
+    setValue,
+    error,
+    isSupported,
+  };
 }
 
 export default useLocalStorage;

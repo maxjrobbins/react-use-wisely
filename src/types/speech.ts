@@ -111,7 +111,7 @@ export interface SpeechRecognitionHookResult {
   transcript: string;
   interimTranscript: string;
   finalTranscript: string;
-  listening: boolean;
+  isListening: boolean;
   error: Error | null;
   isSupported: boolean;
   start: () => void;

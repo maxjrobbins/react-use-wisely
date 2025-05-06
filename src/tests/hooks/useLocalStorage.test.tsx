@@ -21,7 +21,10 @@ function TestComponent({
   initialValue,
   storageKey = "test-key",
 }: TestComponentProps) {
-  const [value, setValue, error] = useLocalStorage(storageKey, initialValue);
+  const { value, setValue, error, isSupported } = useLocalStorage(
+    storageKey,
+    initialValue
+  );
 
   // Safe stringify that handles circular references
   const safeStringify = (obj: any) => {
@@ -38,6 +41,9 @@ function TestComponent({
         {typeof value === "object" ? safeStringify(value) : value}
       </div>
       {error && <div data-testid="error">{error.message}</div>}
+      <div data-testid="supported">
+        {isSupported ? "supported" : "not-supported"}
+      </div>
       <button data-testid="update-button" onClick={() => setValue("new value")}>
         Update String Value
       </button>
@@ -116,6 +122,40 @@ describe("useLocalStorage", () => {
     render(<TestComponent initialValue="initial value" />);
     expect(screen.getByTestId("value").textContent).toBe("initial value");
     expect(window.localStorage.getItem).toHaveBeenCalledWith("test-key");
+  });
+
+  test("should correctly indicate if localStorage is supported", () => {
+    window.localStorage.getItem = jest.fn().mockReturnValue(null);
+
+    // Test with localStorage supported (default)
+    render(<TestComponent initialValue="test value" />);
+    expect(screen.getByTestId("supported").textContent).toBe("supported");
+
+    // Cleanup
+    document.body.innerHTML = "";
+
+    // Mock window without localStorage to test unsupported scenario
+    const originalWindow = { ...window };
+    const windowSpy = jest.spyOn(global, "window", "get");
+
+    // Create a window-like object without localStorage
+    const windowWithoutLocalStorage = {
+      ...originalWindow,
+      localStorage: undefined,
+    };
+
+    // Apply the mock
+    windowSpy.mockImplementation(() => windowWithoutLocalStorage as any);
+
+    // Render with localStorage unavailable
+    render(
+      <TestComponent initialValue="test value" storageKey="no-storage-test" />
+    );
+    expect(screen.getByTestId("supported").textContent).toBe("not-supported");
+
+    // Restore window
+    windowSpy.mockRestore();
+    document.body.innerHTML = "";
   });
 
   test("should update localStorage when value changes", () => {

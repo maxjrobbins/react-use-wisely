@@ -2,17 +2,14 @@ import { useState, useEffect, useRef, useCallback } from "react";
 import { SpeechRecognitionError } from "./errors";
 import type {
   SpeechRecognition as SpeechRecognitionType,
-  SpeechGrammarList as SpeechGrammarListType,
   SpeechRecognitionEvent as SpeechRecognitionEventType,
   SpeechRecognitionErrorEvent as SpeechRecognitionErrorEventType,
   SpeechRecognitionOptions,
   SpeechRecognitionHookResult,
-  SpeechRecognitionConstructor as SpeechRecognitionConstructorType,
 } from "../types/speech";
 import {
   getSpeechRecognition as getSpeechRecognitionAPI,
   getSpeechGrammarList as getSpeechGrammarListAPI,
-  isSpeechRecognitionSupported,
 } from "../utils/speech";
 import { features } from "../utils/browser";
 
@@ -95,44 +92,6 @@ declare global {
   }
 }
 
-// Get the browser's speech recognition implementation
-const getSpeechRecognition = (): SpeechRecognitionConstructor | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.SpeechRecognition || window.webkitSpeechRecognition || null;
-};
-
-// Get the browser's speech grammar list implementation
-const getSpeechGrammarList = (): { new (): SpeechGrammarList } | null => {
-  if (typeof window === "undefined") {
-    return null;
-  }
-
-  return window.SpeechGrammarList || window.webkitSpeechGrammarList || null;
-};
-
-interface UseSpeechRecognitionOptions {
-  continuous?: boolean;
-  interimResults?: boolean;
-  lang?: string;
-  maxAlternatives?: number;
-  grammars?: string[];
-}
-
-interface UseSpeechRecognitionResult {
-  transcript: string;
-  interimTranscript: string;
-  finalTranscript: string;
-  listening: boolean;
-  error: SpeechRecognitionError | null;
-  isSupported: boolean;
-  start: () => void;
-  stop: () => void;
-  reset: () => void;
-}
-
 /**
  * Simplified hook that just checks if speech recognition is supported.
  * Useful to conditionally render speech components.
@@ -151,7 +110,7 @@ export function useSpeechRecognitionBasic(
   lang: string = "en-US"
 ): Omit<SpeechRecognitionHookResult, "interimTranscript" | "finalTranscript"> {
   const [transcript, setTranscript] = useState("");
-  const [listening, setListening] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<SpeechRecognitionError | null>(null);
 
   // Check if speech recognition is supported using the enhanced feature detection
@@ -194,15 +153,15 @@ export function useSpeechRecognitionBasic(
           { errorCode: event.error === "aborted" ? 1 : 0 }
         );
         setError(speechError);
-        setListening(false);
+        setIsListening(false);
       };
 
       recognition.onend = () => {
-        setListening(false);
+        setIsListening(false);
       };
 
       recognition.onstart = () => {
-        setListening(true);
+        setIsListening(true);
         setError(null);
       };
     } catch (error) {
@@ -221,10 +180,11 @@ export function useSpeechRecognitionBasic(
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
           // Silently handle stop error during cleanup
         }
-        setListening(false);
+        setIsListening(false);
       }
     };
   }, [lang, isSupported]);
@@ -242,7 +202,7 @@ export function useSpeechRecognitionBasic(
       return;
     }
 
-    if (recognitionRef.current && !listening) {
+    if (recognitionRef.current && !isListening) {
       try {
         setTranscript("");
         recognitionRef.current.start();
@@ -250,7 +210,7 @@ export function useSpeechRecognitionBasic(
         // Common error: already started
         if (err instanceof Error && err.message.includes("already started")) {
           // Already started is actually fine, just update our state
-          setListening(true);
+          setIsListening(true);
           return;
         }
 
@@ -263,18 +223,18 @@ export function useSpeechRecognitionBasic(
         );
       }
     }
-  }, [isSupported, listening]);
+  }, [isSupported, isListening]);
 
   // Stop recognition
   const stop = useCallback(() => {
-    if (recognitionRef.current && listening) {
+    if (recognitionRef.current && isListening) {
       try {
         recognitionRef.current.stop();
       } catch (err) {
         // Common error: already stopped
         if (err instanceof Error && err.message.includes("not started")) {
           // Already stopped is fine, just update our state
-          setListening(false);
+          setIsListening(false);
           return;
         }
 
@@ -287,16 +247,17 @@ export function useSpeechRecognitionBasic(
         );
       }
     }
-  }, [listening]);
+  }, [isListening]);
 
-  // Reset transcript
+  // Reset transcript for basic version
   const reset = useCallback(() => {
     setTranscript("");
+    setError(null);
   }, []);
 
   return {
     transcript,
-    listening,
+    isListening,
     error,
     isSupported,
     start,
@@ -320,7 +281,7 @@ function useSpeechRecognition({
   const [transcript, setTranscript] = useState("");
   const [interimTranscript, setInterimTranscript] = useState("");
   const [finalTranscript, setFinalTranscript] = useState("");
-  const [listening, setListening] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<SpeechRecognitionError | null>(null);
 
   // Check if speech recognition is supported
@@ -385,7 +346,13 @@ function useSpeechRecognition({
         if (final !== "") {
           setFinalTranscript((prev) => prev + final);
         }
-        setTranscript(final + interim);
+
+        // Update the complete transcript with both final and interim parts
+        setTranscript(() => {
+          const newFinalTranscript =
+            final !== "" ? finalTranscript + final : finalTranscript;
+          return newFinalTranscript + interim;
+        });
       };
 
       recognition.onerror = (event: SpeechRecognitionErrorEventType) => {
@@ -395,14 +362,15 @@ function useSpeechRecognition({
           { errorCode: event.error === "aborted" ? 1 : 0 }
         );
         setError(speechError);
-        setListening(false);
+        setIsListening(false);
 
         // For no-speech error, we might want to restart automatically if in continuous mode
         if (continuous && event.error === "no-speech") {
           setTimeout(() => {
             try {
               recognition.start();
-              setListening(true);
+              setIsListening(true);
+              // eslint-disable-next-line @typescript-eslint/no-unused-vars
             } catch (e) {
               // Silent restart failure
             }
@@ -411,13 +379,14 @@ function useSpeechRecognition({
       };
 
       recognition.onend = () => {
-        setListening(false);
+        setIsListening(false);
 
         // If continuous mode is enabled and no error occurred, restart
         if (continuous && !error && recognitionRef.current) {
           try {
             recognitionRef.current.start();
-            setListening(true);
+            setIsListening(true);
+            // eslint-disable-next-line @typescript-eslint/no-unused-vars
           } catch (e) {
             // Restart silently failed, don't update error state
             // This might happen if the session has already ended due to inactivity
@@ -426,7 +395,7 @@ function useSpeechRecognition({
       };
 
       recognition.onstart = () => {
-        setListening(true);
+        setIsListening(true);
         setError(null);
       };
     } catch (error) {
@@ -445,21 +414,14 @@ function useSpeechRecognition({
       if (recognitionRef.current) {
         try {
           recognitionRef.current.stop();
+          // eslint-disable-next-line @typescript-eslint/no-unused-vars
         } catch (error) {
           // Silently handle stop error during cleanup
         }
-        setListening(false);
+        setIsListening(false);
       }
     };
-  }, [
-    continuous,
-    interimResults,
-    lang,
-    maxAlternatives,
-    isSupported,
-    grammars,
-    error,
-  ]);
+  }, [continuous, interimResults, lang, maxAlternatives, isSupported, grammars, error, finalTranscript]);
 
   // Start recognition
   const start = useCallback(() => {
@@ -474,7 +436,7 @@ function useSpeechRecognition({
       return;
     }
 
-    if (recognitionRef.current && !listening) {
+    if (recognitionRef.current && !isListening) {
       try {
         // Reset transcripts if not in continuous mode
         if (!continuous) {
@@ -488,7 +450,7 @@ function useSpeechRecognition({
         // Common error: already started
         if (err instanceof Error && err.message.includes("already started")) {
           // Already started is actually fine, just update our state
-          setListening(true);
+          setIsListening(true);
           return;
         }
 
@@ -501,18 +463,18 @@ function useSpeechRecognition({
         );
       }
     }
-  }, [isSupported, listening, continuous]);
+  }, [isSupported, isListening, continuous]);
 
   // Stop recognition
   const stop = useCallback(() => {
-    if (recognitionRef.current && listening) {
+    if (recognitionRef.current && isListening) {
       try {
         recognitionRef.current.stop();
       } catch (err) {
         // Common error: already stopped
         if (err instanceof Error && err.message.includes("not started")) {
           // Already stopped is fine, just update our state
-          setListening(false);
+          setIsListening(false);
           return;
         }
 
@@ -525,20 +487,28 @@ function useSpeechRecognition({
         );
       }
     }
-  }, [listening]);
+  }, [isListening]);
 
-  // Reset the transcripts
+  // Reset the transcripts for full version
   const reset = useCallback(() => {
     setInterimTranscript("");
     setFinalTranscript("");
     setTranscript("");
+    setError(null);
+
+    // Ensure these are properly reset by forcing a React state update
+    setTimeout(() => {
+      setInterimTranscript("");
+      setFinalTranscript("");
+      setTranscript("");
+    }, 0);
   }, []);
 
   return {
     transcript,
     interimTranscript,
     finalTranscript,
-    listening,
+    isListening,
     error,
     isSupported,
     start,

@@ -8,13 +8,12 @@ interface TestComponentProps {
 
 // A test component that uses the hook
 const TestComponent: FC<TestComponentProps> = ({ initialEntries = [] }) => {
-  const [map, { set, delete: remove, clear, get, has }] = useMap<
-    string,
-    string
-  >(initialEntries);
+  const { value, set, remove, clear, get, has, reset } = useMap<string, string>(
+    initialEntries
+  );
 
   // Convert Map to array of key-value pairs for display
-  const entries = Array.from(map.entries())
+  const entries = Array.from(value.entries())
     .map(([key, value]) => `${key}:${value}`)
     .sort();
 
@@ -58,6 +57,9 @@ const TestComponent: FC<TestComponentProps> = ({ initialEntries = [] }) => {
         </button>
         <button data-testid="clear-button" onClick={clear}>
           Clear Map
+        </button>
+        <button data-testid="reset-button" onClick={reset}>
+          Reset Map
         </button>
       </div>
       <div>
@@ -238,6 +240,49 @@ describe("useMap", () => {
     expect(screen.getByTestId("entries").textContent).toBe("Empty map");
   });
 
+  test("should reset map to initial entries", () => {
+    render(
+      <TestComponent
+        initialEntries={[
+          ["key1", "value1"],
+          ["key2", "value2"],
+        ]}
+      />
+    );
+
+    // First modify the map
+    const keyInput = screen.getByTestId("key-input") as HTMLInputElement;
+    const valueInput = screen.getByTestId("value-input") as HTMLInputElement;
+    const setButton = screen.getByTestId("set-button");
+    const removeButton = screen.getByTestId("remove-button");
+
+    act(() => {
+      fireEvent.change(keyInput, { target: { value: "key1" } });
+      fireEvent.click(removeButton);
+    });
+
+    act(() => {
+      fireEvent.change(keyInput, { target: { value: "key3" } });
+      fireEvent.change(valueInput, { target: { value: "value3" } });
+      fireEvent.click(setButton);
+    });
+
+    expect(screen.getByTestId("entries").textContent).toBe(
+      "key2:value2, key3:value3"
+    );
+
+    // Now reset
+    const resetButton = screen.getByTestId("reset-button");
+    act(() => {
+      fireEvent.click(resetButton);
+    });
+
+    // Should be back to initial state
+    expect(screen.getByTestId("entries").textContent).toBe(
+      "key1:value1, key2:value2"
+    );
+  });
+
   test("should get values by key", () => {
     render(
       <TestComponent
@@ -307,7 +352,7 @@ describe("useMap", () => {
     }
 
     const ObjectKeysComponent: FC = () => {
-      const [map, { set, get, has }] = useMap<ObjectKey, string>();
+      const { value: map, set, get, has } = useMap<ObjectKey, string>();
       const [key1Ref, setKey1Ref] = useState<ObjectKey | null>(null);
       const [key2Ref, setKey2Ref] = useState<ObjectKey | null>(null);
 

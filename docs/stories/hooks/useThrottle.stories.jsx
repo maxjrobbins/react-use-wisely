@@ -16,7 +16,7 @@ export default {
 
 export const Default = () => {
   const [mousePosition, setMousePosition] = useState({ x: 0, y: 0 });
-  const throttledPosition = useThrottle(mousePosition, 300); // 300ms throttle
+  const throttled = useThrottle(mousePosition, 300); // 300ms throttle
   const [positionLog, setPositionLog] = useState([]);
 
   useEffect(() => {
@@ -36,13 +36,13 @@ export const Default = () => {
       const newLog = [
         ...prev,
         {
-          ...throttledPosition,
+          ...throttled.value,
           time: new Date().toLocaleTimeString([], { hour12: false }),
         },
       ];
       return newLog.slice(-5); // Keep only last 5 entries
     });
-  }, [throttledPosition]);
+  }, [throttled.value]);
 
   return (
     <div
@@ -79,8 +79,13 @@ export const Default = () => {
               borderRadius: "4px",
             }}
           >
-            X: {throttledPosition.x}, Y: {throttledPosition.y}
+            X: {throttled.value.x}, Y: {throttled.value.y}
           </pre>
+          {throttled.error && (
+            <div style={{ color: "red", marginTop: "5px" }}>
+              Error: {throttled.error.message}
+            </div>
+          )}
         </div>
       </div>
 

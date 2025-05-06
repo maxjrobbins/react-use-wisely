@@ -1,20 +1,32 @@
 import { useRef, useEffect } from "react";
 
-/**
- * Hook that returns a ref indicating if the component is mounted
- * @returns {React.RefObject<boolean>} Ref containing the mounted state
- */
-const useMountedRef = (): React.RefObject<boolean> => {
-  const mountedRef = useRef<boolean>(true);
+interface MountedRefResult {
+  isMounted: boolean;
+  error: Error | null;
+}
 
-  // Set to false when the component unmounts
+/**
+ * Hook that tracks if the component is mounted
+ * @returns An object with the component's mounted state
+ */
+function useMountedRef(): MountedRefResult {
+  // Track if component is mounted with a ref
+  const mounted = useRef(true);
+
+  // Handle cleanup on unmount
   useEffect(() => {
     return () => {
-      mountedRef.current = false;
+      mounted.current = false;
     };
   }, []);
 
-  return mountedRef;
-};
+  // Create a new object on each render that reads the current ref value
+  return {
+    get isMounted() {
+      return mounted.current;
+    },
+    error: null,
+  };
+}
 
 export default useMountedRef;

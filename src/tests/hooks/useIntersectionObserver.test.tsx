@@ -15,7 +15,7 @@ function TestComponent({
   showRef = true,
   forceError = false,
 }: TestComponentProps) {
-  const [ref, isIntersecting, error] =
+  const { ref, isIntersecting, isSupported, error } =
     useIntersectionObserver<HTMLDivElement>(options);
 
   // If forceError is true, we'll show an error message for testing
@@ -32,6 +32,7 @@ function TestComponent({
         </div>
       )}
       <div data-testid="is-intersecting">{isIntersecting.toString()}</div>
+      <div data-testid="is-supported">{isSupported.toString()}</div>
       {displayError && <div data-testid="error">{displayError.message}</div>}
     </div>
   );
@@ -209,6 +210,10 @@ describe("useIntersectionObserver", () => {
     const isIntersectingElement = screen.getByTestId("is-intersecting");
     expect(isIntersectingElement.textContent).toBe("false");
 
+    // Check that isSupported is set to false
+    const isSupportedElement = screen.getByTestId("is-supported");
+    expect(isSupportedElement.textContent).toBe("false");
+
     // Console error should be called
     expect(console.error).toHaveBeenCalled();
 
@@ -229,6 +234,9 @@ describe("useIntersectionObserver", () => {
 
     // isIntersecting should still be false
     expect(isIntersectingElement.textContent).toBe("false");
+
+    // isSupported should still be false
+    expect(isSupportedElement.textContent).toBe("false");
 
     // Restore IntersectionObserver
     window.IntersectionObserver = originalIntersectionObserver;
@@ -253,5 +261,14 @@ describe("useIntersectionObserver", () => {
     // The actual error message in the DOM is dependent on the implementation
     // We can optionally check if the error element is present, but it's not essential
     // for this test since we're mainly testing the error handling functionality
+  });
+
+  // Add a test for isSupported when browser supports IntersectionObserver
+  test("should set isSupported to true when IntersectionObserver is available", () => {
+    render(<TestComponent />);
+
+    // Check that isSupported is true by default when IntersectionObserver is available
+    const isSupportedElement = screen.getByTestId("is-supported");
+    expect(isSupportedElement.textContent).toBe("true");
   });
 });

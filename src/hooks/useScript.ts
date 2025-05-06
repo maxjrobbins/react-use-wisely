@@ -17,7 +17,14 @@ interface ScriptOptions {
 }
 
 interface ScriptResult {
+  // Maintain original status for backward compatibility
   status: Status;
+  // Standard boolean indicators
+  isLoading: boolean;
+  isReady: boolean;
+  isError: boolean;
+  isIdle: boolean;
+  // Standard error and support fields
   error: ScriptError | null;
   isSupported: boolean;
 }
@@ -33,11 +40,19 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
     runInBrowser<ScriptResult>(
       () => ({
         status: src ? "loading" : "idle",
+        isLoading: src ? true : false,
+        isReady: false,
+        isError: false,
+        isIdle: src ? false : true,
         error: null,
         isSupported: true,
       }),
       () => ({
         status: "unsupported",
+        isLoading: false,
+        isReady: false,
+        isError: false,
+        isIdle: false,
         error: new ScriptError(
           "Script loading is not supported in this environment",
           null
@@ -55,7 +70,14 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
 
     // If the script is already loaded, don't need to add it again
     if (!src) {
-      setState((prev) => ({ ...prev, status: "idle" }));
+      setState((prev) => ({
+        ...prev,
+        status: "idle",
+        isLoading: false,
+        isReady: false,
+        isError: false,
+        isIdle: true,
+      }));
       return;
     }
 
@@ -70,7 +92,15 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
       if (script) {
         const scriptStatus =
           (script.getAttribute("data-status") as Status) || "ready";
-        setState((prev) => ({ ...prev, status: scriptStatus }));
+
+        setState((prev) => ({
+          ...prev,
+          status: scriptStatus,
+          isLoading: scriptStatus === "loading",
+          isReady: scriptStatus === "ready",
+          isError: scriptStatus === "error",
+          isIdle: scriptStatus === "idle",
+        }));
       } else {
         // Create script element
         script = document.createElement("script");
@@ -92,7 +122,14 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
         // Event handlers
         script.onload = () => {
           script.setAttribute("data-status", "ready");
-          setState((prev) => ({ ...prev, status: "ready" }));
+          setState((prev) => ({
+            ...prev,
+            status: "ready",
+            isLoading: false,
+            isReady: true,
+            isError: false,
+            isIdle: false,
+          }));
         };
 
         script.onerror = (event) => {
@@ -107,6 +144,10 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
           script.setAttribute("data-status", "error");
           setState({
             status: "error",
+            isLoading: false,
+            isReady: false,
+            isError: true,
+            isIdle: false,
             error: scriptError,
             isSupported: true,
           });
@@ -138,6 +179,10 @@ function useScript(src: string, options: ScriptOptions = {}): ScriptResult {
       );
       setState({
         status: "error",
+        isLoading: false,
+        isReady: false,
+        isError: true,
+        isIdle: false,
         error: scriptError,
         isSupported: true,
       });

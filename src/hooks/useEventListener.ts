@@ -30,7 +30,7 @@ function useEventListener<
 >(
   eventName: K,
   handler: (event: HTMLElementEventMap[K]) => void,
-  element: RefObject<T>,
+  element: RefObject<T | null>,
   options?: AddEventListenerOptions
 ): EventListenerResult;
 

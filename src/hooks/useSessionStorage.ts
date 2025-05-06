@@ -1,19 +1,24 @@
 import { useState, useEffect, useCallback } from "react";
 import { LocalStorageError } from "./errors";
 
-type SetValue<T> = (value: T | ((prevValue: T) => T)) => void;
+interface SessionStorageResult<T> {
+  value: T;
+  setValue: (value: T | ((prevValue: T) => T)) => void;
+  isSupported: boolean;
+  error: LocalStorageError | null;
+}
 
 /**
  * Hook that manages a value in sessionStorage
  * @template T Type of the stored value
  * @param {string} key - The key to store the value under in sessionStorage
  * @param {T} initialValue - Initial value if no value is stored
- * @returns {[T, SetValue<T>, LocalStorageError | null]} Stored value, setter, and error if any
+ * @returns {SessionStorageResult<T>} Object containing stored value, setter, support status, and error if any
  */
 function useSessionStorage<T>(
   key: string,
   initialValue: T
-): [T, SetValue<T>, LocalStorageError | null] {
+): SessionStorageResult<T> {
   // Check for sessionStorage availability
   const isSessionStorageAvailable = useCallback(() => {
     try {
@@ -26,6 +31,10 @@ function useSessionStorage<T>(
     }
   }, []);
 
+  // Cache the support result
+  const isSupported =
+    typeof window !== "undefined" && isSessionStorageAvailable();
+
   // State to store the error
   const [error, setError] = useState<LocalStorageError | null>(null);
 
@@ -37,7 +46,7 @@ function useSessionStorage<T>(
     }
 
     // Check if sessionStorage is available
-    if (!isSessionStorageAvailable()) {
+    if (!isSupported) {
       setError(
         new LocalStorageError("sessionStorage is not available", null, {
           key,
@@ -60,7 +69,7 @@ function useSessionStorage<T>(
       );
       return initialValue;
     }
-  }, [initialValue, isSessionStorageAvailable, key]);
+  }, [initialValue, isSupported, key]);
 
   // State to store our value
   const [storedValue, setStoredValue] = useState<T>(readStoredValue);
@@ -84,7 +93,9 @@ function useSessionStorage<T>(
         // Save state
         setStoredValue(valueToStore);
         // Save to sessionStorage
-        window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+        if (isSupported) {
+          window.sessionStorage.setItem(key, JSON.stringify(valueToStore));
+        }
         // Clear any previous errors
         setError(null);
       } catch (e) {
@@ -97,13 +108,13 @@ function useSessionStorage<T>(
         );
       }
     },
-    [key, storedValue]
+    [key, storedValue, isSupported]
   );
 
   // Listen for changes to the sessionStorage
   useEffect(() => {
     // SSR check
-    if (typeof window === "undefined") {
+    if (typeof window === "undefined" || !isSupported) {
       return;
     }
 
@@ -131,9 +142,14 @@ function useSessionStorage<T>(
     return () => {
       window.removeEventListener("storage", handleStorageChange);
     };
-  }, [key, initialValue]);
+  }, [key, initialValue, isSupported]);
 
-  return [storedValue, setValue, error];
+  return {
+    value: storedValue,
+    setValue,
+    isSupported,
+    error,
+  };
 }
 
 export default useSessionStorage;

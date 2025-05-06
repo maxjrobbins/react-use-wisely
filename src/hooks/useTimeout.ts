@@ -3,13 +3,16 @@ import { useEffect, useRef, useCallback } from "react";
 /**
  * Hook for safely managing setTimeout in a React component
  * @param {Function} callback - Function to call after the timeout
- * @param {number} delay - Delay in milliseconds. Pass null to disable the timeout.
- * @returns {Object} - Controls for the timeout
+ * @param {number | null} delay - Delay in milliseconds. Pass null to disable the timeout.
+ * @returns {Object} Object containing timeout controls and state
  */
 const useTimeout = (
   callback: () => void,
   delay: number | null
-): { reset: () => void; clear: () => void } => {
+): {
+  reset: () => void;
+  clear: () => void;
+} => {
   const callbackRef = useRef<() => void>(callback);
   const timeoutRef = useRef<NodeJS.Timeout | undefined>(undefined);
 

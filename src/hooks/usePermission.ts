@@ -24,11 +24,13 @@ type CustomPermissionName =
   | "display-capture"
   | "nfc";
 
-interface UsePermissionResult {
+interface PermissionResult {
   state: PermissionState | "unsupported";
   isGranted: boolean;
   isDenied: boolean;
   isPrompt: boolean;
+  isSupported: boolean;
+  isLoading: boolean;
   error: PermissionError | null;
   request: () => Promise<PermissionState | "unsupported">;
 }
@@ -36,15 +38,14 @@ interface UsePermissionResult {
 /**
  * Hook for handling browser permission requests
  * @param {string} permissionName - The name of the permission to request
- * @returns {UsePermissionResult} Permission state and control functions
+ * @returns {PermissionResult} Permission state and control functions
  */
-function usePermission(
-  permissionName: CustomPermissionName
-): UsePermissionResult {
+function usePermission(permissionName: CustomPermissionName): PermissionResult {
   const [state, setState] = useState<PermissionState | "unsupported">(
     "unsupported"
   );
   const [error, setError] = useState<PermissionError | null>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
 
   // Check if permissions API is supported using our feature detection
   const isPermissionsSupported = features.permissions();
@@ -71,6 +72,7 @@ function usePermission(
 
   // Is the specific feature supported
   const isFeatureSupported = getFeatureSupport();
+  const isSupported = isFeatureSupported;
 
   // Derived state
   const isGranted = state === "granted";
@@ -135,6 +137,8 @@ function usePermission(
       );
       return "unsupported";
     }
+
+    setIsLoading(true);
 
     try {
       // Different permissions use different APIs to request access
@@ -224,6 +228,8 @@ function usePermission(
       const currentState = await getPermissionState();
       setState(currentState);
       return currentState;
+    } finally {
+      setIsLoading(false);
     }
   }, [
     permissionName,
@@ -301,6 +307,8 @@ function usePermission(
     isGranted,
     isDenied,
     isPrompt,
+    isSupported,
+    isLoading,
     error,
     request,
   };

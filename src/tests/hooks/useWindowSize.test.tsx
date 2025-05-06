@@ -4,12 +4,19 @@ import useWindowSize from "../../hooks/useWindowSize";
 
 // A test component that uses the hook
 const TestComponent: FC = () => {
-  const { width, height } = useWindowSize();
+  const { width, height, isSupported, error } = useWindowSize();
+
+  if (error) {
+    return <div data-testid="error">{error.message}</div>;
+  }
 
   return (
     <div>
       <div data-testid="size">
         Width: {width || "undefined"}, Height: {height || "undefined"}
+      </div>
+      <div data-testid="supported">
+        {isSupported ? "supported" : "not supported"}
       </div>
     </div>
   );
@@ -27,6 +34,9 @@ describe("useWindowSize", () => {
     window.innerHeight = originalInnerHeight;
     window.addEventListener = originalAddEventListener;
     window.removeEventListener = originalRemoveEventListener;
+
+    // Ensure any mocks are restored
+    jest.restoreAllMocks();
   });
 
   test("should return current window dimensions", () => {
@@ -100,6 +110,25 @@ describe("useWindowSize", () => {
     // Should have already called the resize handler once
     expect(screen.getByTestId("size").textContent).toBe(
       "Width: 500, Height: 300"
+    );
+  });
+
+  test("should indicate browser environment is supported", () => {
+    render(<TestComponent />);
+    expect(screen.getByTestId("supported").textContent).toBe("supported");
+  });
+
+  test("should handle error when addEventListener throws", () => {
+    // Mock addEventListener to throw an error
+    jest.spyOn(window, "addEventListener").mockImplementation(() => {
+      throw new Error("Failed to add event listener");
+    });
+
+    render(<TestComponent />);
+
+    expect(screen.getByTestId("error")).toBeInTheDocument();
+    expect(screen.getByTestId("error").textContent).toBe(
+      "Failed to add event listener"
     );
   });
 });

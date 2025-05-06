@@ -17,13 +17,29 @@ export default {
 };
 
 export const Default = () => {
-  const [ref, dimensions, error] = useResizeObserver();
+  const { ref, dimensions, error, isSupported } = useResizeObserver();
 
   return (
     <div
       style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
     >
       <h3>Resize Observer Demo</h3>
+
+      {!isSupported && (
+        <div
+          style={{
+            padding: "10px",
+            backgroundColor: "#fff3cd",
+            color: "#856404",
+            borderRadius: "4px",
+            marginBottom: "10px",
+            border: "1px solid #ffeeba",
+          }}
+        >
+          <strong>Warning:</strong> ResizeObserver is not supported in this
+          browser.
+        </div>
+      )}
 
       {error && (
         <div
@@ -89,7 +105,7 @@ export const Default = () => {
 Default.storyName = "Basic Usage";
 
 export const WithErrorHandling = () => {
-  const [ref, dimensions, error] = useResizeObserver();
+  const { ref, dimensions, error, isSupported } = useResizeObserver();
   const [mockError, setMockError] = useState(false);
   const [browserSupport, setBrowserSupport] = useState(true);
 
@@ -109,6 +125,9 @@ export const WithErrorHandling = () => {
   const displayError = mockError
     ? new ResizeObserverNotSupportedError()
     : error;
+
+  // For demo purposes, override the actual support state with our mock state
+  const displaySupported = mockError ? false : isSupported;
 
   return (
     <div
@@ -167,13 +186,13 @@ export const WithErrorHandling = () => {
               width: "12px",
               height: "12px",
               borderRadius: "50%",
-              backgroundColor: browserSupport ? "#4CAF50" : "#f44336",
+              backgroundColor: displaySupported ? "#4CAF50" : "#f44336",
               marginRight: "8px",
             }}
           ></div>
           <span>
             <strong>ResizeObserver:</strong>{" "}
-            {browserSupport ? "Supported" : "Not supported"}
+            {displaySupported ? "Supported" : "Not supported"}
           </span>
         </div>
       </div>
@@ -210,6 +229,7 @@ export const WithErrorHandling = () => {
             <ul style={{ marginTop: "5px" }}>
               <li>Return an empty dimensions object</li>
               <li>Provide an error with details about the issue</li>
+              <li>Set isSupported to false</li>
               <li>Allow your app to implement fallback UI</li>
             </ul>
           </div>

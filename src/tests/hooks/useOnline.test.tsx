@@ -1,5 +1,5 @@
 import React, { FC } from "react";
-import { render, screen, act } from "@testing-library/react";
+import { render, screen, act, fireEvent } from "@testing-library/react";
 import useOnline from "../../hooks/useOnline";
 import { features } from "../../utils/browser";
 
@@ -12,8 +12,9 @@ jest.mock("../../utils/browser", () => ({
 }));
 
 // A test component that uses the hook
-const TestComponent: FC = () => {
-  const { isOnline, error, lastChanged, isSupported } = useOnline();
+const TestComponent: FC<{ options?: any }> = ({ options }) => {
+  const { isOnline, error, lastChanged, isSupported, refresh } =
+    useOnline(options);
 
   return (
     <div>
@@ -25,6 +26,9 @@ const TestComponent: FC = () => {
       <div data-testid="supported">
         {isSupported ? "Supported" : "Not Supported"}
       </div>
+      <button data-testid="refresh-btn" onClick={() => refresh()}>
+        Refresh
+      </button>
     </div>
   );
 };
@@ -233,6 +237,21 @@ describe("useOnline - Basic Functionality", () => {
     // Should default to online when not supported
     expect(screen.getByTestId("status").textContent).toBe("Online");
   });
+
+  test("should expose a refresh method that can be called", async () => {
+    // Mock fetch for the refresh call
+    window.fetch = jest.fn().mockResolvedValueOnce({});
+
+    render(<TestComponent />);
+
+    // Call the refresh method
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("refresh-btn"));
+    });
+
+    // Should have called fetch
+    expect(window.fetch).toHaveBeenCalled();
+  });
 });
 
 describe("useOnline - Ping Functionality", () => {
@@ -351,12 +370,9 @@ describe("useOnline - Ping Functionality", () => {
     // Render the component
     render(<TestComponent />);
 
-    // Get the ping function from setInterval
-    const pingFunction = (window.setInterval as jest.Mock).mock.calls[0][0];
-
-    // Execute the ping function
+    // Call the refresh method directly
     await act(async () => {
-      await pingFunction();
+      fireEvent.click(screen.getByTestId("refresh-btn"));
     });
 
     // Now check if the UI has updated
@@ -365,5 +381,42 @@ describe("useOnline - Ping Functionality", () => {
     expect(screen.getByTestId("error").textContent).toContain(
       "Connection check failed"
     );
+  });
+
+  test("should accept custom pingInterval option", () => {
+    render(<TestComponent options={{ pingInterval: 60000 }} />);
+
+    // Should set up interval with custom interval
+    expect(window.setInterval).toHaveBeenCalledWith(
+      expect.any(Function),
+      60000
+    );
+  });
+
+  test("should accept custom pingEndpoint option", async () => {
+    render(
+      <TestComponent options={{ pingEndpoint: "https://example.com/ping" }} />
+    );
+
+    // Call refresh to trigger fetch
+    await act(async () => {
+      fireEvent.click(screen.getByTestId("refresh-btn"));
+    });
+
+    // Should use custom endpoint
+    expect(window.fetch).toHaveBeenCalledWith(
+      "https://example.com/ping",
+      expect.objectContaining({
+        method: "HEAD",
+        mode: "no-cors",
+      })
+    );
+  });
+
+  test("should disable ping when enablePing is false", () => {
+    render(<TestComponent options={{ enablePing: false }} />);
+
+    // Should not set up interval
+    expect(window.setInterval).not.toHaveBeenCalled();
   });
 });

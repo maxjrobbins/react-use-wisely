@@ -15,11 +15,11 @@ export default {
 };
 
 export const Default = () => {
-  const arrowUpPressed = useKeyPress("ArrowUp");
-  const arrowDownPressed = useKeyPress("ArrowDown");
-  const arrowLeftPressed = useKeyPress("ArrowLeft");
-  const arrowRightPressed = useKeyPress("ArrowRight");
-  const spacePressed = useKeyPress(" ");
+  const { isPressed: arrowUpPressed } = useKeyPress("ArrowUp");
+  const { isPressed: arrowDownPressed } = useKeyPress("ArrowDown");
+  const { isPressed: arrowLeftPressed } = useKeyPress("ArrowLeft");
+  const { isPressed: arrowRightPressed } = useKeyPress("ArrowRight");
+  const { isPressed: spacePressed } = useKeyPress(" ");
 
   // Keep track of pressed keys for demo
   const [keyHistory, setKeyHistory] = useState([]);

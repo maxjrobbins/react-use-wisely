@@ -4,30 +4,50 @@ import { NetworkError } from "./errors";
 import { features, runInBrowser } from "../utils/browser";
 
 /**
+ * Options for the useOnline hook
+ */
+interface OnlineOptions {
+  pingEndpoint?: string;
+  pingInterval?: number;
+  pingTimeout?: number;
+  enablePing?: boolean;
+}
+
+/**
  * Interface for the online state returned by the useOnline hook
  */
-interface OnlineState {
+interface OnlineResult {
   isOnline: boolean;
   error: NetworkError | null;
   lastChanged: Date | null;
   isSupported: boolean;
+  refresh: () => Promise<void>;
 }
 
 /**
  * Hook that tracks online status
+ * @param options Configuration options for the online tracking
  * @returns An object with online status, support status, error information, and last changed timestamp
  */
-const useOnline = (): OnlineState => {
+const useOnline = (options?: OnlineOptions): OnlineResult => {
+  // Default options
+  const {
+    pingEndpoint = "https://www.google.com/favicon.ico",
+    pingInterval = 30000,
+    pingTimeout = 5000,
+    enablePing = true,
+  } = options || {};
+
   // Check if the online/offline API is supported
   const isSupported = features.online();
 
-  const [state, setState] = useState<OnlineState>(() => {
+  const [state, setState] = useState<Omit<OnlineResult, "refresh">>(() => {
     try {
       // If in a browser and API is supported, get the initial status
       return {
         isOnline: runInBrowser(
-            () => (isSupported ? navigator.onLine : true),
-            () => true // Default to online for SSR
+          () => (isSupported ? navigator.onLine : true),
+          () => true // Default to online for SSR
         ),
         error: null,
         lastChanged: null,
@@ -35,8 +55,8 @@ const useOnline = (): OnlineState => {
       };
     } catch (error) {
       const networkError = new NetworkError(
-          "Failed to determine initial online status",
-          error
+        "Failed to determine initial online status",
+        error
       );
       console.error(networkError);
       return {
@@ -67,6 +87,68 @@ const useOnline = (): OnlineState => {
     });
   }, [isSupported]);
 
+  // Check connection function
+  const checkConnection = useCallback(async (): Promise<void> => {
+    try {
+      // Skip check if navigator is not available or already offline
+      if (typeof navigator === "undefined" || !navigator.onLine) {
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), pingTimeout);
+
+      try {
+        await fetch(pingEndpoint, {
+          method: "HEAD",
+          mode: "no-cors",
+          cache: "no-store",
+          signal: controller.signal,
+        });
+
+        clearTimeout(timeoutId);
+
+        // Update state if we were previously offline
+        setState((prev) => {
+          if (!prev.isOnline) {
+            return {
+              isOnline: true,
+              error: null,
+              lastChanged: new Date(),
+              isSupported: true,
+            };
+          }
+          return prev;
+        });
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+
+        // Only update if we were previously online
+        setState((prev) => {
+          if (prev.isOnline) {
+            return {
+              isOnline: false,
+              error: new NetworkError("Connection check failed", fetchError),
+              lastChanged: new Date(),
+              isSupported: true,
+            };
+          }
+          return prev;
+        });
+      }
+    } catch (error) {
+      // Handle any unexpected errors in the ping check
+      console.error(new NetworkError("Error during connection check", error));
+    }
+  }, [isSupported, pingEndpoint, pingTimeout]);
+
+  // Refresh method to manually check connection
+  const refresh = useCallback(async (): Promise<void> => {
+    if (isSupported && typeof window !== "undefined" && "fetch" in window) {
+      await checkConnection();
+    }
+  }, [isSupported, checkConnection]);
+
   // Effect for handling event listeners
   useEffect(() => {
     // Don't set up listeners if not in browser or API not supported
@@ -84,8 +166,8 @@ const useOnline = (): OnlineState => {
       };
     } catch (error) {
       const networkError = new NetworkError(
-          "Failed to set up network status listeners",
-          error
+        "Failed to set up network status listeners",
+        error
       );
       console.error(networkError);
       setState((prev) => ({
@@ -99,70 +181,17 @@ const useOnline = (): OnlineState => {
 
   // Effect for ping functionality
   useEffect(() => {
-    // Skip setup if not supported or not in browser
-    if (!isSupported || typeof window === "undefined" || !("fetch" in window)) {
+    // Skip setup if not supported, not in browser, ping not enabled
+    if (
+      !isSupported ||
+      typeof window === "undefined" ||
+      !("fetch" in window) ||
+      !enablePing
+    ) {
       return;
     }
 
     let pingIntervalId: number | null = null;
-    const pingEndpoint = "https://www.google.com/favicon.ico";
-    const pingInterval = 30000; // 30 seconds
-
-    const checkConnection = async (): Promise<void> => {
-      try {
-        // Skip check if navigator is not available or already offline
-        if (typeof navigator === "undefined" || !navigator.onLine) {
-          return;
-        }
-
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5000);
-
-        try {
-          await fetch(pingEndpoint, {
-            method: "HEAD",
-            mode: "no-cors",
-            cache: "no-store",
-            signal: controller.signal,
-          });
-
-          clearTimeout(timeoutId);
-
-          // Update state if we were previously offline
-          setState((prev) => {
-            if (!prev.isOnline) {
-              return {
-                isOnline: true,
-                error: null,
-                lastChanged: new Date(),
-                isSupported: true,
-              };
-            }
-            return prev;
-          });
-        } catch (fetchError) {
-          clearTimeout(timeoutId);
-
-          // Only update if we were previously online
-          setState((prev) => {
-            if (prev.isOnline) {
-              return {
-                isOnline: false,
-                error: new NetworkError("Connection check failed", fetchError),
-                lastChanged: new Date(),
-                isSupported: true,
-              };
-            }
-            return prev;
-          });
-        }
-      } catch (error) {
-        // Handle any unexpected errors in the ping check
-        console.error(
-            new NetworkError("Error during connection check", error)
-        );
-      }
-    };
 
     // Setup ping interval
     pingIntervalId = window.setInterval(checkConnection, pingInterval);
@@ -172,9 +201,12 @@ const useOnline = (): OnlineState => {
         clearInterval(pingIntervalId);
       }
     };
-  }, [isSupported]);
+  }, [isSupported, checkConnection, pingInterval, enablePing]);
 
-  return state;
+  return {
+    ...state,
+    refresh,
+  };
 };
 
 export default useOnline;

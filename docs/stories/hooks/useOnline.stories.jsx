@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import useOnline from "../../../src/hooks/useOnline";
 
 export default {
@@ -283,3 +283,275 @@ export const WithErrorDetails = () => {
 };
 
 WithErrorDetails.storyName = "With Error Handling";
+
+export const WithRefresh = () => {
+  const { isOnline, error, lastChanged, isSupported, refresh } = useOnline();
+  const [refreshing, setRefreshing] = useState(false);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await refresh();
+      setLastRefreshed(new Date());
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  return (
+    <div
+      style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
+    >
+      <h3>Online Status with Manual Refresh</h3>
+
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "20px",
+          borderRadius: "8px",
+          textAlign: "center",
+          backgroundColor: isOnline ? "#e8f5e9" : "#ffebee",
+          color: isOnline ? "#2e7d32" : "#c62828",
+          transition: "all 0.3s ease",
+        }}
+      >
+        <div style={{ fontSize: "48px", marginBottom: "10px" }}>
+          {isOnline ? "🌐" : "📴"}
+        </div>
+        <h2 style={{ margin: "0 0 10px 0" }}>
+          {isOnline ? "You are online" : "You are offline"}
+        </h2>
+
+        <button
+          onClick={handleRefresh}
+          disabled={refreshing}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#2196f3",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: refreshing ? "not-allowed" : "pointer",
+            opacity: refreshing ? 0.7 : 1,
+          }}
+        >
+          {refreshing ? "Checking..." : "Check Connection Now"}
+        </button>
+
+        {lastRefreshed && (
+          <div style={{ marginTop: "10px", fontSize: "0.9em", opacity: 0.8 }}>
+            Last manual check: {lastRefreshed.toLocaleTimeString()}
+          </div>
+        )}
+      </div>
+
+      <div style={{ marginTop: "20px" }}>
+        <p>
+          This example demonstrates the <code>refresh()</code> method of the
+          <code>useOnline</code> hook, which allows manual checking of the
+          connection status.
+        </p>
+        <p>
+          This is useful when you want to verify the connection before
+          performing a critical network operation.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+WithRefresh.storyName = "With Manual Refresh";
+
+export const WithCustomOptions = () => {
+  const [options, setOptions] = useState({
+    pingEndpoint: "https://www.google.com/favicon.ico",
+    pingInterval: 30000,
+    pingTimeout: 5000,
+    enablePing: true,
+  });
+
+  const { isOnline, refresh } = useOnline(options);
+
+  const updateOption = (key, value) => {
+    setOptions((prev) => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  return (
+    <div
+      style={{ padding: "20px", border: "1px solid #ddd", borderRadius: "4px" }}
+    >
+      <h3>Online Status with Custom Options</h3>
+
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "20px",
+          borderRadius: "8px",
+          textAlign: "center",
+          backgroundColor: isOnline ? "#e8f5e9" : "#ffebee",
+          color: isOnline ? "#2e7d32" : "#c62828",
+          transition: "all 0.3s ease",
+        }}
+      >
+        <div style={{ fontSize: "48px", marginBottom: "10px" }}>
+          {isOnline ? "🌐" : "📴"}
+        </div>
+        <h2 style={{ margin: "0 0 10px 0" }}>
+          {isOnline ? "You are online" : "You are offline"}
+        </h2>
+      </div>
+
+      <div
+        style={{
+          marginTop: "20px",
+          padding: "15px",
+          backgroundColor: "#f5f5f5",
+          borderRadius: "4px",
+        }}
+      >
+        <h4 style={{ margin: "0 0 10px 0" }}>Configuration Options:</h4>
+
+        <div style={{ marginBottom: "15px" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "5px",
+              fontWeight: "bold",
+            }}
+          >
+            Ping Endpoint:
+          </label>
+          <select
+            value={options.pingEndpoint}
+            onChange={(e) => updateOption("pingEndpoint", e.target.value)}
+            style={{
+              width: "100%",
+              padding: "8px",
+              borderRadius: "4px",
+              border: "1px solid #ddd",
+            }}
+          >
+            <option value="https://www.google.com/favicon.ico">
+              Google Favicon
+            </option>
+            <option value="https://www.microsoft.com/favicon.ico">
+              Microsoft Favicon
+            </option>
+            <option value="https://www.apple.com/favicon.ico">
+              Apple Favicon
+            </option>
+          </select>
+        </div>
+
+        <div style={{ marginBottom: "15px" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "5px",
+              fontWeight: "bold",
+            }}
+          >
+            Ping Interval (ms):
+          </label>
+          <input
+            type="range"
+            min="5000"
+            max="60000"
+            step="5000"
+            value={options.pingInterval}
+            onChange={(e) =>
+              updateOption("pingInterval", parseInt(e.target.value))
+            }
+            style={{ width: "100%" }}
+          />
+          <div style={{ textAlign: "center" }}>{options.pingInterval}ms</div>
+        </div>
+
+        <div style={{ marginBottom: "15px" }}>
+          <label
+            style={{
+              display: "block",
+              marginBottom: "5px",
+              fontWeight: "bold",
+            }}
+          >
+            Ping Timeout (ms):
+          </label>
+          <input
+            type="range"
+            min="1000"
+            max="10000"
+            step="1000"
+            value={options.pingTimeout}
+            onChange={(e) =>
+              updateOption("pingTimeout", parseInt(e.target.value))
+            }
+            style={{ width: "100%" }}
+          />
+          <div style={{ textAlign: "center" }}>{options.pingTimeout}ms</div>
+        </div>
+
+        <div style={{ marginBottom: "15px" }}>
+          <label
+            style={{ display: "flex", alignItems: "center", cursor: "pointer" }}
+          >
+            <input
+              type="checkbox"
+              checked={options.enablePing}
+              onChange={(e) => updateOption("enablePing", e.target.checked)}
+              style={{ marginRight: "10px" }}
+            />
+            <span style={{ fontWeight: "bold" }}>Enable Automatic Pinging</span>
+          </label>
+        </div>
+
+        <button
+          onClick={() => refresh()}
+          style={{
+            padding: "10px 20px",
+            backgroundColor: "#2196f3",
+            color: "white",
+            border: "none",
+            borderRadius: "4px",
+            cursor: "pointer",
+            width: "100%",
+            marginTop: "10px",
+          }}
+        >
+          Check Connection Now
+        </button>
+      </div>
+
+      <div style={{ marginTop: "20px", fontSize: "0.9em", color: "#666" }}>
+        <p>
+          <strong>Note:</strong> Changing these options will cause the hook to
+          reinitialize with the new settings. In a real application, you would
+          typically set these options once when the component mounts.
+        </p>
+        <p>
+          <strong>Available options:</strong>
+        </p>
+        <ul>
+          <li>
+            <code>pingEndpoint</code> - URL to ping to check connection
+          </li>
+          <li>
+            <code>pingInterval</code> - Time between automatic checks (ms)
+          </li>
+          <li>
+            <code>pingTimeout</code> - Timeout for each ping request (ms)
+          </li>
+          <li>
+            <code>enablePing</code> - Whether to enable automatic pinging
+          </li>
+        </ul>
+      </div>
+    </div>
+  );
+};
+
+WithCustomOptions.storyName = "With Custom Options";

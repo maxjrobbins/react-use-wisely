@@ -8,7 +8,11 @@ interface TestComponentProps {
 
 // A test component that uses the hook
 const TestComponent: FC<TestComponentProps> = ({ targetKey }) => {
-  const isKeyPressed = useKeyPress(targetKey);
+  const {
+    isPressed: isKeyPressed,
+    isSupported,
+    error,
+  } = useKeyPress(targetKey);
 
   return (
     <div>
@@ -17,6 +21,10 @@ const TestComponent: FC<TestComponentProps> = ({ targetKey }) => {
           ? `${targetKey} is pressed`
           : `${targetKey} is not pressed`}
       </div>
+      <div data-testid="support">
+        {isSupported ? "Supported" : "Not supported"}
+      </div>
+      <div data-testid="error">{error ? error.message : "No error"}</div>
     </div>
   );
 };
@@ -131,5 +139,24 @@ describe("useKeyPress", () => {
 
     // Key should be detected as pressed
     expect(screen.getByTestId("status").textContent).toBe("Escape is pressed");
+  });
+
+  test("should indicate if the feature is supported", () => {
+    render(<TestComponent targetKey="Enter" />);
+    expect(screen.getByTestId("support").textContent).toBe("Supported");
+  });
+
+  test("should handle errors gracefully", () => {
+    // Mock addEventListener to throw an error
+    const originalAddEventListener = window.addEventListener;
+    window.addEventListener = jest.fn().mockImplementation(() => {
+      throw new Error("Mock error");
+    });
+
+    render(<TestComponent targetKey="Enter" />);
+    expect(screen.getByTestId("error").textContent).toBe("Mock error");
+
+    // Restore original addEventListener
+    window.addEventListener = originalAddEventListener;
   });
 });

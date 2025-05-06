@@ -70,7 +70,9 @@ export const Default = () => {
               borderRadius: "4px",
             }}
           >
-            {previousCount === undefined ? "undefined" : previousCount}
+            {previousCount.value === undefined
+              ? "undefined"
+              : previousCount.value}
           </pre>
         </div>
       </div>

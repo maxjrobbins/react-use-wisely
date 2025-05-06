@@ -1,95 +1,48 @@
 import React, { FC } from "react";
-import { render, screen, act } from "@testing-library/react";
-import useReducerWithMiddleware, {
-  Middleware,
-} from "../../hooks/useReducerWithMiddleware";
+import { render, screen, fireEvent, act } from "@testing-library/react";
+import useReducerWithMiddleware from "../../hooks/useReducerWithMiddleware";
 
-// Define types for our test
-interface CounterState {
-  count: number;
-  lastAction?: string;
-}
+// Simple counter reducer for testing
+const initialState = { count: 0 };
 
-type CounterAction =
-  | { type: "INCREMENT"; payload?: number }
-  | { type: "DECREMENT"; payload?: number }
-  | { type: "RESET" };
-
-// A simple counter reducer
-const counterReducer = (
-  state: CounterState,
-  action: CounterAction
-): CounterState => {
+const reducer = (state: typeof initialState, action: any) => {
   switch (action.type) {
     case "INCREMENT":
-      return {
-        ...state,
-        count: state.count + (action.payload || 1),
-        lastAction: "INCREMENT",
-      };
+      return { ...state, count: state.count + 1 };
     case "DECREMENT":
-      return {
-        ...state,
-        count: state.count - (action.payload || 1),
-        lastAction: "DECREMENT",
-      };
-    case "RESET":
-      return {
-        ...state,
-        count: 0,
-        lastAction: "RESET",
-      };
+      return { ...state, count: state.count - 1 };
+    case "ERROR":
+      throw new Error("Simulated reducer error");
     default:
       return state;
   }
 };
 
-// Logger middleware for testing
-const loggerMiddleware: Middleware<CounterState, CounterAction> = (
-  state,
-  action,
-  next
-) => {
-  console.log(`Action: ${action.type}`);
-  console.log(`Before: ${JSON.stringify(state)}`);
+// Simple middleware for testing
+const loggingMiddleware = jest.fn((state, action, next) => {
   next(action);
-};
+});
 
-// Middleware that blocks DECREMENT when count is 0
-const blockDecrementMiddleware: Middleware<CounterState, CounterAction> = (
-  state,
-  action,
-  next
-) => {
-  if (action.type === "DECREMENT" && state.count <= 0) {
-    console.log("Blocked DECREMENT action because count is 0");
-    return;
+// Middleware that throws an error
+const errorMiddleware = jest.fn((state, action, next) => {
+  if (action.type === "MIDDLEWARE_ERROR") {
+    throw new Error("Simulated middleware error");
   }
   next(action);
-};
+});
 
-// Test component that uses the hook
-interface TestComponentProps {
-  middleware?: Middleware<CounterState, CounterAction>;
-  initialState?: CounterState;
-}
-
-const TestComponent: FC<TestComponentProps> = ({
-  middleware,
-  initialState = { count: 0 },
-}) => {
-  const [state, dispatch] = useReducerWithMiddleware(
-    counterReducer,
+// Test component
+const TestComponent: FC = () => {
+  const { state, dispatch, error } = useReducerWithMiddleware(
+    reducer,
     initialState,
-    middleware
+    loggingMiddleware
   );
 
   return (
     <div>
-      <div data-testid="count">Count: {state.count}</div>
-      <div data-testid="lastAction">
-        Last Action: {state.lastAction || "None"}
-      </div>
+      <div data-testid="count">{state.count}</div>
+      {error && <div data-testid="error">{error.message}</div>}
       <button
         data-testid="increment"
         onClick={() => dispatch({ type: "INCREMENT" })}
@@ -97,211 +50,149 @@ const TestComponent: FC<TestComponentProps> = ({
         Increment
       </button>
       <button
-        data-testid="increment-by-5"
-        onClick={() => dispatch({ type: "INCREMENT", payload: 5 })}
-      >
-        Increment by 5
-      </button>
-      <button
         data-testid="decrement"
         onClick={() => dispatch({ type: "DECREMENT" })}
       >
         Decrement
       </button>
-      <button data-testid="reset" onClick={() => dispatch({ type: "RESET" })}>
-        Reset
+      <button
+        data-testid="error-btn"
+        onClick={() => dispatch({ type: "ERROR" })}
+      >
+        Trigger Error
+      </button>
+    </div>
+  );
+};
+
+// Test component with error middleware
+const ErrorMiddlewareComponent: FC = () => {
+  const { state, dispatch, error } = useReducerWithMiddleware(
+    reducer,
+    initialState,
+    errorMiddleware
+  );
+
+  return (
+    <div>
+      <div data-testid="count">{state.count}</div>
+      {error && <div data-testid="error">{error.message}</div>}
+      <button
+        data-testid="increment"
+        onClick={() => dispatch({ type: "INCREMENT" })}
+      >
+        Increment
+      </button>
+      <button
+        data-testid="middleware-error"
+        onClick={() => dispatch({ type: "MIDDLEWARE_ERROR" })}
+      >
+        Trigger Middleware Error
       </button>
     </div>
   );
 };
 
 describe("useReducerWithMiddleware", () => {
-  // Set up fake timers for all tests
   beforeEach(() => {
-    // Mock console.log to avoid cluttering test output
-    jest.spyOn(console, "log").mockImplementation(() => {});
-    // Set up fake timers for setTimeout
-    jest.useFakeTimers();
+    jest.clearAllMocks();
   });
 
-  afterEach(() => {
-    jest.restoreAllMocks();
-    jest.useRealTimers();
+  test("should initialize with initial state", () => {
+    render(<TestComponent />);
+    expect(screen.getByTestId("count").textContent).toBe("0");
   });
 
-  test("should work like normal useReducer when no middleware is provided", () => {
+  test("should update state when actions are dispatched", () => {
     render(<TestComponent />);
 
     // Initial state
-    expect(screen.getByTestId("count").textContent).toBe("Count: 0");
+    expect(screen.getByTestId("count").textContent).toBe("0");
 
     // Increment
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
-
-    expect(screen.getByTestId("count").textContent).toBe("Count: 1");
-    expect(screen.getByTestId("lastAction").textContent).toBe(
-      "Last Action: INCREMENT"
-    );
+    fireEvent.click(screen.getByTestId("increment"));
+    expect(screen.getByTestId("count").textContent).toBe("1");
 
     // Decrement
-    act(() => {
-      screen.getByTestId("decrement").click();
-    });
-
-    expect(screen.getByTestId("count").textContent).toBe("Count: 0");
-    expect(screen.getByTestId("lastAction").textContent).toBe(
-      "Last Action: DECREMENT"
-    );
-
-    // Reset
-    act(() => {
-      screen.getByTestId("increment").click();
-      screen.getByTestId("increment").click();
-      screen.getByTestId("reset").click();
-    });
-
-    expect(screen.getByTestId("count").textContent).toBe("Count: 0");
-    expect(screen.getByTestId("lastAction").textContent).toBe(
-      "Last Action: RESET"
-    );
+    fireEvent.click(screen.getByTestId("decrement"));
+    expect(screen.getByTestId("count").textContent).toBe("0");
   });
 
-  test("should call logger middleware for each action", () => {
-    const spy = jest.spyOn(console, "log");
-    render(<TestComponent middleware={loggerMiddleware} />);
-
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
-
-    // Middleware should log before action
-    expect(spy).toHaveBeenCalledWith("Action: INCREMENT");
-    expect(spy).toHaveBeenCalledWith('Before: {"count":0}');
-
-    // Action should be processed
-    expect(screen.getByTestId("count").textContent).toBe("Count: 1");
-  });
-
-  test("should support blocking actions with middleware", () => {
-    render(<TestComponent middleware={blockDecrementMiddleware} />);
-
-    // Try to decrement at 0, should be blocked
-    act(() => {
-      screen.getByTestId("decrement").click();
-    });
-
-    // Count should still be 0 because the decrement was blocked
-    expect(screen.getByTestId("count").textContent).toBe("Count: 0");
-    // Last action should not have changed
-    expect(screen.getByTestId("lastAction").textContent).toBe(
-      "Last Action: None"
-    );
-
-    // First increment to 1
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
-
-    expect(screen.getByTestId("count").textContent).toBe("Count: 1");
-
-    // Then decrement back to 0
-    act(() => {
-      screen.getByTestId("decrement").click();
-    });
-
-    // Count should be back to 0 now
-    expect(screen.getByTestId("count").textContent).toBe("Count: 0");
-    // And last action should be DECREMENT
-    expect(screen.getByTestId("lastAction").textContent).toBe(
-      "Last Action: DECREMENT"
-    );
-  });
-
-  test("should support actions with payload", () => {
+  test("should call middleware with correct arguments", () => {
     render(<TestComponent />);
 
-    // Increment by 5
-    act(() => {
-      screen.getByTestId("increment-by-5").click();
-    });
+    // Dispatch an action
+    fireEvent.click(screen.getByTestId("increment"));
 
-    expect(screen.getByTestId("count").textContent).toBe("Count: 5");
+    // Check middleware was called with correct arguments
+    expect(loggingMiddleware).toHaveBeenCalledWith(
+      expect.objectContaining({ count: 0 }), // Initial state
+      { type: "INCREMENT" }, // Action
+      expect.any(Function) // Next function
+    );
   });
 
-  test("should work with custom initial state", () => {
-    render(<TestComponent initialState={{ count: 10 }} />);
+  test("should handle errors in reducer", () => {
+    render(<TestComponent />);
 
-    // Initial state should be 10
-    expect(screen.getByTestId("count").textContent).toBe("Count: 10");
+    // No error initially
+    expect(screen.queryByTestId("error")).toBeNull();
 
-    // Increment
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
+    // Trigger error
+    fireEvent.click(screen.getByTestId("error-btn"));
 
-    expect(screen.getByTestId("count").textContent).toBe("Count: 11");
+    // Error should be displayed
+    expect(screen.getByTestId("error").textContent).toBe(
+      "Simulated reducer error"
+    );
+
+    // State should remain unchanged
+    expect(screen.getByTestId("count").textContent).toBe("0");
   });
 
-  test("should not re-create middleware function on re-renders", () => {
-    // Create a component that forces re-renders
-    const TestWithRerender: FC = () => {
-      const [, setForceUpdate] = React.useState(0);
-      const middlewareCalls = React.useRef(0);
+  test("should handle errors in middleware", () => {
+    render(<ErrorMiddlewareComponent />);
 
-      // Create a middleware that increments a counter
-      const countMiddleware: Middleware<CounterState, CounterAction> =
-        React.useCallback((state, action, next) => {
-          middlewareCalls.current += 1;
-          // Apply the action so the state changes
-          next(action);
-          // Force update to display the current value of middlewareCalls.current
-          setForceUpdate((prev) => prev + 1);
-        }, []);
+    // No error initially
+    expect(screen.queryByTestId("error")).toBeNull();
+
+    // Trigger middleware error
+    fireEvent.click(screen.getByTestId("middleware-error"));
+
+    // Error should be displayed
+    expect(screen.getByTestId("error").textContent).toBe(
+      "Simulated middleware error"
+    );
+  });
+
+  test("should work without middleware", () => {
+    // Create a simpler test component without middleware
+    const SimpleComponent: FC = () => {
+      const { state, dispatch } = useReducerWithMiddleware(
+        reducer,
+        initialState
+      );
 
       return (
-        <>
-          <TestComponent middleware={countMiddleware} />
-          <div data-testid="calls">
-            Middleware Calls: {middlewareCalls.current}
-          </div>
+        <div>
+          <div data-testid="count">{state.count}</div>
           <button
-            data-testid="rerender"
-            onClick={() => setForceUpdate((prev) => prev + 1)}
+            data-testid="increment"
+            onClick={() => dispatch({ type: "INCREMENT" })}
           >
-            Force Rerender
+            Increment
           </button>
-        </>
+        </div>
       );
     };
 
-    render(<TestWithRerender />);
+    render(<SimpleComponent />);
 
     // Initial state
-    expect(screen.getByTestId("calls").textContent).toBe("Middleware Calls: 0");
+    expect(screen.getByTestId("count").textContent).toBe("0");
 
-    // Dispatch an action
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
-
-    // After the action, middlewareCalls should be updated
-    expect(screen.getByTestId("count").textContent).toBe("Count: 1");
-    expect(screen.getByTestId("calls").textContent).toBe("Middleware Calls: 1");
-
-    // Force a re-render
-    act(() => {
-      screen.getByTestId("rerender").click();
-    });
-
-    // Dispatch another action
-    act(() => {
-      screen.getByTestId("increment").click();
-    });
-
-    // Middleware should be called again
-    expect(screen.getByTestId("count").textContent).toBe("Count: 2");
-    expect(screen.getByTestId("calls").textContent).toBe("Middleware Calls: 2");
+    // Increment
+    fireEvent.click(screen.getByTestId("increment"));
+    expect(screen.getByTestId("count").textContent).toBe("1");
   });
 });

@@ -24,7 +24,7 @@ export const Default = () => {
   const [checkValue, setCheckValue] = useState("");
 
   // Initialize with some default values
-  const [set, { add, remove, has, clear, toggle }] = useSet([
+  const { value, add, remove, has, clear, toggle } = useSet([
     "apple",
     "banana",
     "orange",
@@ -150,7 +150,7 @@ export const Default = () => {
       </div>
 
       <div>
-        <h4>Current Set ({set.size} items):</h4>
+        <h4>Current Set ({value.size} items):</h4>
         <div
           style={{
             backgroundColor: "#f5f5f5",
@@ -159,7 +159,7 @@ export const Default = () => {
             minHeight: "100px",
           }}
         >
-          {set.size > 0 ? (
+          {value.size > 0 ? (
             <ul
               style={{
                 listStyle: "none",
@@ -170,7 +170,7 @@ export const Default = () => {
                 gap: "10px",
               }}
             >
-              {[...set].map((item) => (
+              {[...value].map((item) => (
                 <li
                   key={item}
                   style={{
@@ -234,6 +234,9 @@ export const Default = () => {
       >
         <h4 style={{ margin: "0 0 10px 0" }}>Hook API:</h4>
         <ul style={{ margin: "0", paddingLeft: "20px" }}>
+          <li>
+            <code>value</code> - The Set data structure
+          </li>
           <li>
             <code>add(item)</code> - Adds an item to the set
           </li>

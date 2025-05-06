@@ -13,12 +13,13 @@ interface TestComponentProps {
 // A test component that uses the hook
 const TestComponent: FC<TestComponentProps> = ({ initialValue, limit }) => {
   const [value, setValue] = useState<number>(initialValue);
-  const throttledValue = useThrottle<number>(value, limit);
+  const throttled = useThrottle<number>(value, limit);
 
   return (
     <div>
       <div data-testid="current-value">Current: {value}</div>
-      <div data-testid="throttled-value">Throttled: {throttledValue}</div>
+      <div data-testid="throttled-value">Throttled: {throttled.value}</div>
+      <div data-testid="error">{throttled.error?.message || "No error"}</div>
       <button data-testid="increment" onClick={() => setValue((v) => v + 1)}>
         Increment
       </button>
@@ -42,6 +43,7 @@ describe("useThrottle", () => {
     expect(screen.getByTestId("throttled-value").textContent).toBe(
       "Throttled: 0"
     );
+    expect(screen.getByTestId("error").textContent).toBe("No error");
   });
 
   test("should not update throttled value before limit duration", () => {
@@ -165,12 +167,12 @@ describe("useThrottle", () => {
     const DynamicLimitComponent: FC = () => {
       const [value, setValue] = useState<number>(0);
       const [limit, setLimit] = useState<number>(500);
-      const throttledValue = useThrottle<number>(value, limit);
+      const throttled = useThrottle<number>(value, limit);
 
       return (
         <div>
           <div data-testid="current-value">Current: {value}</div>
-          <div data-testid="throttled-value">Throttled: {throttledValue}</div>
+          <div data-testid="throttled-value">Throttled: {throttled.value}</div>
           <div data-testid="limit">Limit: {limit}</div>
           <button
             data-testid="increment"
@@ -262,12 +264,12 @@ describe("useThrottle", () => {
     const DefaultLimitComponent: FC = () => {
       const [value, setValue] = useState<number>(0);
       // Using default limit (500ms)
-      const throttledValue = useThrottle<number>(value);
+      const throttled = useThrottle<number>(value);
 
       return (
         <div>
           <div data-testid="current-value">Current: {value}</div>
-          <div data-testid="throttled-value">Throttled: {throttledValue}</div>
+          <div data-testid="throttled-value">Throttled: {throttled.value}</div>
           <button
             data-testid="increment"
             onClick={() => setValue((v) => v + 1)}
@@ -472,12 +474,12 @@ describe("useThrottle", () => {
     // Create a component with controlled props
     const ThrottleTestComponent = () => {
       const [count, setCount] = useState(0);
-      const throttledCount = useThrottle(count, 500);
+      const throttled = useThrottle(count, 500);
 
       return (
         <div>
           <div data-testid="original">{count}</div>
-          <div data-testid="throttled">{throttledCount}</div>
+          <div data-testid="throttled">{throttled.value}</div>
           <button
             data-testid="increment"
             onClick={() => setCount((c) => c + 1)}
@@ -541,12 +543,12 @@ describe("useThrottle", () => {
     // Create test component that will trigger the useThrottle hook
     const TimeConditionComponent = () => {
       const [value, setValue] = useState(1);
-      const throttledValue = useThrottle(value, 500);
+      const throttled = useThrottle(value, 500);
 
       return (
         <div>
           <div data-testid="value">{value}</div>
-          <div data-testid="throttled">{throttledValue}</div>
+          <div data-testid="throttled">{throttled.value}</div>
           <button
             data-testid="increment"
             onClick={() => setValue((v) => v + 1)}
@@ -582,5 +584,118 @@ describe("useThrottle", () => {
       // Clean up mocks
       Date.now = realDateNow;
     }
+  });
+
+  test("should handle errors gracefully", () => {
+    // Mock Date.now to throw error only once, then return a normal value
+    const originalDateNow = Date.now;
+    let callCount = 0;
+
+    Date.now = jest.fn().mockImplementation(() => {
+      if (callCount === 0) {
+        callCount++;
+        throw new Error("Simulated error");
+      }
+      return 1000; // Return a stable timestamp for subsequent calls
+    });
+
+    // Create a component that uses the hook
+    const ErrorComponent: FC = () => {
+      const [value, setValue] = useState(0);
+      const throttled = useThrottle(value, 500);
+
+      return (
+        <div>
+          <div data-testid="value">{value}</div>
+          <div data-testid="throttled">{throttled.value}</div>
+          <div data-testid="error">
+            {throttled.error?.message || "No error"}
+          </div>
+          <button
+            data-testid="increment"
+            onClick={() => setValue((v) => v + 1)}
+          >
+            Increment
+          </button>
+        </div>
+      );
+    };
+
+    try {
+      // Render and check for error
+      render(<ErrorComponent />);
+
+      // Should have an error and still provide a value
+      expect(screen.getByTestId("error").textContent).toBe("Simulated error");
+      expect(screen.getByTestId("throttled").textContent).toBe("0");
+    } finally {
+      // Restore original Date.now
+      Date.now = originalDateNow;
+    }
+  });
+
+  test("should handle errors during effect execution", () => {
+    // First let the component render normally
+    const EffectErrorComponent: FC = () => {
+      const [value, setValue] = useState(0);
+      const throttled = useThrottle(value, 500);
+
+      return (
+        <div>
+          <div data-testid="value">{value}</div>
+          <div data-testid="throttled">{throttled.value}</div>
+          <div data-testid="error">
+            {throttled.error?.message || "No error"}
+          </div>
+          <button
+            data-testid="increment"
+            onClick={() => {
+              // Set up Date.now to throw on the next few calls
+              const originalDateNow = Date.now;
+              let errorCallCount = 0;
+
+              Date.now = jest.fn().mockImplementation(() => {
+                if (errorCallCount < 2) {
+                  // Only throw for the first two calls
+                  errorCallCount++;
+                  throw new Error("Effect execution error");
+                }
+                return originalDateNow();
+              });
+
+              // Increment to trigger effect
+              setValue((v) => v + 1);
+
+              // Schedule restoration of Date.now to avoid affecting other tests
+              setTimeout(() => {
+                Date.now = originalDateNow;
+              }, 0);
+            }}
+          >
+            Increment
+          </button>
+        </div>
+      );
+    };
+
+    render(<EffectErrorComponent />);
+
+    // Initially no error
+    expect(screen.getByTestId("error").textContent).toBe("No error");
+
+    // Click to cause Date.now to throw during effect
+    act(() => {
+      fireEvent.click(screen.getByTestId("increment"));
+    });
+
+    // Fast-forward timers to execute effect
+    act(() => {
+      jest.advanceTimersByTime(10);
+    });
+
+    // Should show the error
+    expect(screen.getByTestId("error").textContent).toBe(
+      "Effect execution error"
+    );
   });
 });

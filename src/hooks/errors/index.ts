@@ -255,6 +255,19 @@ export class IdleError extends BaseError {
   }
 }
 
+/**
+ * Error class for browser API-related errors
+ */
+export class BrowserAPIError extends BaseError {
+  constructor(
+    message: string,
+    originalError?: unknown,
+    context?: Record<string, unknown>
+  ) {
+    super(message, originalError, context);
+  }
+}
+
 export { BaseError };
 export default {
   BaseError,
@@ -275,4 +288,5 @@ export default {
   SpeechRecognitionError,
   NetworkSpeedError,
   IdleError,
+  BrowserAPIError,
 };

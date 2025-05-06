@@ -15,7 +15,11 @@ const TestComponent: FC<TestComponentProps> = ({ initialValue }) => {
     <div>
       <div data-testid="current">Current: {value}</div>
       <div data-testid="previous">
-        Previous: {previousValue === undefined ? "undefined" : previousValue}
+        Previous:{" "}
+        {previousValue.value === undefined ? "undefined" : previousValue.value}
+      </div>
+      <div data-testid="error">
+        Error: {previousValue.error === null ? "null" : "not-null"}
       </div>
       <button data-testid="increment" onClick={() => setValue((v) => v + 1)}>
         Increment
@@ -100,7 +104,9 @@ describe("usePrevious", () => {
           <div data-testid="current">Current: {value}</div>
           <div data-testid="previous">
             Previous:{" "}
-            {previousValue === undefined ? "undefined" : previousValue}
+            {previousValue.value === undefined
+              ? "undefined"
+              : previousValue.value}
           </div>
           <button data-testid="update" onClick={() => setValue("updated")}>
             Update
@@ -148,8 +154,8 @@ describe("usePrevious", () => {
           </div>
           <div data-testid="previous">
             Previous:{" "}
-            {previousValue
-              ? `${previousValue.name}, ${previousValue.count}`
+            {previousValue.value
+              ? `${previousValue.value.name}, ${previousValue.value.count}`
               : "undefined"}
           </div>
           <button
@@ -185,5 +191,10 @@ describe("usePrevious", () => {
     expect(screen.getByTestId("previous").textContent).toBe(
       "Previous: initial, 0"
     );
+  });
+
+  test("should have error property set to null", () => {
+    render(<TestComponent initialValue={0} />);
+    expect(screen.getByTestId("error").textContent).toBe("Error: null");
   });
 });

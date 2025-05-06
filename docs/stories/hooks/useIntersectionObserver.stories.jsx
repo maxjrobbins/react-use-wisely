@@ -16,13 +16,32 @@ export default {
 };
 
 export const Default = () => {
-  const [ref, isVisible, error] = useIntersectionObserver({
+  const {
+    ref,
+    isIntersecting: isVisible,
+    isSupported,
+    error,
+  } = useIntersectionObserver({
     threshold: 0.5,
   });
 
   return (
     <div style={{ padding: "20px" }}>
       <h3>Intersection Observer Demo</h3>
+
+      <div
+        style={{
+          padding: "10px",
+          backgroundColor: "#f5f5f5",
+          borderRadius: "4px",
+          marginBottom: "15px",
+        }}
+      >
+        <strong>Browser Support:</strong>{" "}
+        {isSupported
+          ? "Intersection Observer API is supported ✅"
+          : "Intersection Observer API is not supported ❌"}
+      </div>
 
       {error && (
         <div
@@ -141,7 +160,12 @@ Default.storyName = "Basic Usage";
 
 export const WithErrorHandling = () => {
   // Using complex options to demonstrate error handling
-  const [ref, isVisible, error] = useIntersectionObserver({
+  const {
+    ref,
+    isIntersecting: isVisible,
+    isSupported,
+    error,
+  } = useIntersectionObserver({
     threshold: [0, 0.25, 0.5, 0.75, 1],
     rootMargin: "10px",
   });
@@ -159,7 +183,7 @@ export const WithErrorHandling = () => {
         }}
       >
         <strong>Browser Support:</strong>{" "}
-        {typeof IntersectionObserver !== "undefined"
+        {isSupported
           ? "Intersection Observer API is supported ✅"
           : "Intersection Observer API is not supported ❌"}
       </div>

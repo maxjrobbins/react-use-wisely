@@ -1,5 +1,4 @@
-import { useState, useEffect, RefObject } from "react";
-import useThrottle from "./useThrottle";
+import { useState, useEffect, RefObject, useCallback, useRef } from "react";
 
 interface ScrollPosition {
   x: number;
@@ -12,63 +11,134 @@ interface UseScrollPositionOptions {
   skipWhenHidden?: boolean;
 }
 
+interface UseScrollPositionResult {
+  x: number;
+  y: number;
+  isSupported: boolean;
+  error: Error | null;
+}
+
 /**
  * Hook for tracking scroll position
  * @param {UseScrollPositionOptions} options - Configuration options
  * @param {RefObject<HTMLElement>} options.element - Optional element to track (defaults to window)
  * @param {number} options.wait - Throttle delay in ms (defaults to 100)
  * @param {boolean} options.skipWhenHidden - Skip updates when document is hidden (defaults to true)
- * @returns {ScrollPosition} Current scroll position (x, y)
+ * @returns {UseScrollPositionResult} Current scroll position (x, y) and support information
  */
 const useScrollPosition = ({
   element,
   wait = 100,
   skipWhenHidden = true,
-}: UseScrollPositionOptions = {}): ScrollPosition => {
+}: UseScrollPositionOptions = {}): UseScrollPositionResult => {
   const [position, setPosition] = useState<ScrollPosition>({ x: 0, y: 0 });
+  const [error, setError] = useState<Error | null>(null);
+  const lastUpdateTimeRef = useRef<number>(0);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if the browser supports the required APIs
+  const isSupported =
+    typeof window !== "undefined" && typeof document !== "undefined";
 
   // Get the scroll position from either the element or window
-  const getScrollPosition = (): ScrollPosition => {
-    if (element?.current) {
-      return {
-        x: element.current.scrollLeft,
-        y: element.current.scrollTop,
-      };
-    }
+  const getScrollPosition = useCallback((): ScrollPosition => {
+    try {
+      if (element?.current) {
+        return {
+          x: element.current.scrollLeft,
+          y: element.current.scrollTop,
+        };
+      }
 
-    if (typeof window === "undefined") {
+      if (!isSupported) {
+        return { x: 0, y: 0 };
+      }
+
+      return {
+        x: window.pageXOffset,
+        y: window.pageYOffset,
+      };
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("Failed to get scroll position")
+      );
       return { x: 0, y: 0 };
     }
+  }, [element, isSupported]);
 
-    return {
-      x: window.pageXOffset,
-      y: window.pageYOffset,
-    };
-  };
+  // Create a simple throttled scroll handler
+  const handleScroll = useCallback(() => {
+    try {
+      if (skipWhenHidden && document.hidden) {
+        return;
+      }
 
-  // Throttled position update function
-  const handleScroll = useThrottle(() => {
-    if (skipWhenHidden && document.hidden) {
-      return;
+      const now = Date.now();
+      const elapsedTime = now - lastUpdateTimeRef.current;
+
+      if (elapsedTime < wait) {
+        // If we're within the wait period, clear any existing timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        // Schedule an update at the end of the wait period
+        timeoutRef.current = setTimeout(() => {
+          lastUpdateTimeRef.current = Date.now();
+          setPosition(getScrollPosition());
+          timeoutRef.current = null;
+        }, wait - elapsedTime);
+
+        return;
+      }
+
+      // If we've exceeded the wait time, update immediately
+      lastUpdateTimeRef.current = now;
+      setPosition(getScrollPosition());
+    } catch (err) {
+      setError(
+        err instanceof Error ? err : new Error("Error handling scroll event")
+      );
     }
-
-    setPosition(getScrollPosition());
-  }, wait);
+  }, [getScrollPosition, skipWhenHidden, wait]);
 
   useEffect(() => {
-    // Set initial position
-    setPosition(getScrollPosition());
+    if (!isSupported) return;
 
-    // Set up scroll listener
-    const targetElement = element?.current || window;
-    targetElement.addEventListener("scroll", handleScroll);
+    try {
+      // Set initial position
+      setPosition(getScrollPosition());
+      lastUpdateTimeRef.current = Date.now();
 
-    return () => {
-      targetElement.removeEventListener("scroll", handleScroll);
-    };
-  }, [element, handleScroll]);
+      // Set up scroll listener
+      const targetElement = element?.current || window;
 
-  return position;
+      // @ts-ignore
+      targetElement.addEventListener("scroll", handleScroll);
+
+      return () => {
+        // Clear any pending timeout
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+        }
+
+        // @ts-ignore
+        targetElement.removeEventListener("scroll", handleScroll);
+      };
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err
+          : new Error("Error setting up scroll listener")
+      );
+    }
+  }, [element, getScrollPosition, handleScroll, isSupported]);
+
+  return {
+    ...position,
+    isSupported,
+    error,
+  };
 };
 
 export default useScrollPosition;
