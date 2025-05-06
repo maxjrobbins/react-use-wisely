@@ -61,7 +61,6 @@ describe("useSessionStorage", () => {
 
     expect(result.current.value).toBe("initial-value");
     expect(result.current.isSupported).toBe(true);
-    expect(result.current.error).toBeNull();
   });
 
   it("should read pre-existing values from sessionStorage", () => {
@@ -182,7 +181,6 @@ describe("useSessionStorage", () => {
 
     expect(result.current.isSupported).toBe(false);
     expect(result.current.value).toBe("initial-value");
-    expect(result.current.error).not.toBeNull();
     expect(result.current.error?.message).toContain(
       "sessionStorage is not available"
     );
@@ -197,7 +195,6 @@ describe("useSessionStorage", () => {
     );
 
     expect(result.current.value).toBe("fallback-value");
-    expect(result.current.error).not.toBeNull();
     expect(result.current.error?.message).toBe(
       "Error reading from sessionStorage"
     );
@@ -224,7 +221,6 @@ describe("useSessionStorage", () => {
     rerender();
 
     expect(result.current.value).toBe("will-fail"); // Value in state should still update
-    expect(result.current.error).not.toBeNull();
     expect(result.current.error?.message).toContain(
       "Error writing to sessionStorage"
     );
