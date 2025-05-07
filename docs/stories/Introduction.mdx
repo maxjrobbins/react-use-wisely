@@ -18,39 +18,52 @@ yarn add react-use-wisely
 
 This library includes various categories of hooks to help you build React applications:
 
-### Data Management
+### Data Management & State
 
-- **useMap** - Stateful Map data structure with convenient methods
-- **useSet** - Stateful Set data structure with convenient methods
-- **useLocalStorage** - Persist state to localStorage with React state
-- **useReducerWithMiddleware** - Enhanced useReducer with middleware support
+- **useAsync** - Handle asynchronous operations with loading, error, and success states. Includes built-in retry functionality.
+- **useFetch** - A specialized hook for data fetching with automatic request cancellation and built-in caching.
+- **useMap** - Stateful Map data structure with convenient methods for managing key-value pairs.
+- **useSet** - Stateful Set data structure with convenient methods for managing unique values.
+- **useLocalStorage** - Persist state to localStorage with the same API as useState.
+- **useSessionStorage** - Like useLocalStorage but using sessionStorage for session-based persistence.
+- **useReducerWithMiddleware** - Enhanced useReducer with middleware support for logging, analytics, etc.
+- **usePrevious** - Keep track of the previous value of a variable for comparison or animation purposes.
 
 ### UI & Events
 
-- **useClickOutside** - Detect clicks outside of an element
-- **useHover** - Detect when an element is hovered
-- **useKeyPress** - Track when specific keys are pressed
-- **useResizeObserver** - Track element dimension changes
-- **useIntersectionObserver** - Detect when an element is visible
+- **useClickOutside** - Detect clicks outside of a component (for modals, dropdowns, etc).
+- **useHover** - Track whether an element is being hovered.
+- **useKeyPress** - Detect when specific keys are pressed.
+- **useResizeObserver** - Track element dimensions when they change.
+- **useIntersectionObserver** - Detect when an element is visible in the viewport.
+- **useScrollPosition** - Track and control scroll position with throttling.
+- **useWindowSize** - Get and track window dimensions.
+- **useEventListener** - Easily add and remove event listeners with proper cleanup.
+- **useForm** - Complete form state management with validation.
 
-### Asynchronous & Effects
+### Performance & Optimization
 
-- **useAsync** - Handle async operations with loading/error states
-- **useDebounce** - Debounce rapidly changing values
-- **useThrottle** - Limit the rate at which a function can fire
+- **useDebounce** - Debounce rapidly changing values to reduce unnecessary renders or API calls.
+- **useThrottle** - Limit the rate at which a function can fire.
+- **useWhyDidYouUpdate** - Debug component re-renders by logging prop changes.
+- **useMountedRef** - Track whether a component is still mounted to prevent memory leaks.
 
-### Browser APIs
+### Browser APIs & Features
 
-- **useGeolocation** - Access device location
-- **useOnline** - Track user's online/offline status
-- **useClipboard** - Copy text to clipboard
-- **useMedia** - React to media queries
-- **useIdle** - Detect when a user is inactive
+- **useGeolocation** - Access and track device location with improved error states.
+- **useOnline** - Track user's online/offline status.
+- **useClipboard** - Copy text to clipboard with success state and cross-browser support.
+- **useMedia** - React to media query changes for responsive designs.
+- **useIdle** - Detect when a user is inactive.
+- **usePageVisibility** - Detect when your page is visible or hidden to the user.
+- **usePermission** - Request and check browser permissions status.
+- **useScript** - Dynamically load external scripts with loading states.
+- **useSpeechRecognition** - Access browser speech recognition capabilities.
+- **usePrefersReducedMotion** - Respect user's motion preferences for accessibility.
 
-### Development
+### Error Handling
 
-- **useWhyDidYouUpdate** - Debug component re-renders
-- **usePrevious** - Access previous props or state
+- **useErrorBoundary** - Create error boundaries in functional components.
 
 ## Usage
 
