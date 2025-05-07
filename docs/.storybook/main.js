@@ -8,37 +8,16 @@ const config = {
     "@storybook/addon-essentials",
     "@storybook/addon-a11y",
     "@storybook/addon-links",
-    "@storybook/addon-interactions",
   ],
   framework: {
     name: "@storybook/react-vite",
-    options: {
-      builder: {
-        viteConfigPath: "docs/vite.config.ts",
-      },
-    },
+    options: {},
   },
   docs: {
     autodocs: true,
     defaultName: "Documentation",
   },
   staticDirs: ["../public"],
-  core: {
-    disableTelemetry: true,
-  },
-  features: {
-    storyStoreV7: true,
-  },
-  viteFinal: async (config) => {
-    return {
-      ...config,
-      base: "./",
-      build: {
-        ...config.build,
-        sourcemap: true,
-      },
-    };
-  },
 };
 
 export default config;

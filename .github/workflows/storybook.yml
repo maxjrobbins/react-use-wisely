@@ -14,45 +14,40 @@ permissions:
 # Allow only one concurrent deployment
 concurrency:
   group: "pages"
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   build-and-deploy:
     environment:
-      name: github-pages
+      name: "github-pages"
       url: ${{ steps.deployment.outputs.page_url }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node
+      - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 18
           cache: "npm"
-          cache-dependency-path: docs/package-lock.json
-
-      - name: Install dependencies
-        run: |
-          cd docs
-          npm ci
-
-      - name: Build Storybook
-        run: |
-          cd docs
-          npm run build-storybook
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
-        with:
-          static_site_generator: storybook
-          enablement: true
+
+      - name: Install main package dependencies
+        run: npm ci --legacy-peer-deps
+
+      - name: Install docs package dependencies
+        run: cd docs && npm ci --legacy-peer-deps
+
+      - name: Build Storybook
+        run: cd docs && npm run build-storybook
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: docs/storybook-static
+          path: "docs/storybook-static"
 
       - name: Deploy to GitHub Pages
         id: deployment
